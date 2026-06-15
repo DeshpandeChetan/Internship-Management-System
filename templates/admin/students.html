@@ -1,0 +1,117 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}Student Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>Student Management</h3>
+    <div>
+        <a href="{% url 'admin_add_student' %}" class="btn btn-primary me-2">Add Student</a>
+        <a href="{% url 'admin_bulk_upload_students' %}" class="btn btn-secondary">Bulk Upload</a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" value="{{ filter_values.search|default:'' }}" class="form-control" placeholder="Name, reg no, email">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Programme</label>
+                <select name="programme" class="form-select">
+                    <option value="">All</option>
+                    {% for programme in programmes %}
+                        <option value="{{ programme.id }}" {% if filter_values.programme == programme.id|stringformat:'s' %}selected{% endif %}>{{ programme.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Batch</label>
+                <select name="batch" class="form-select">
+                    <option value="">All</option>
+                    {% for batch in batches %}
+                        <option value="{{ batch.id }}" {% if filter_values.batch == batch.id|stringformat:'s' %}selected{% endif %}>{{ batch.batch_year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if filter_values.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Degree Start</label>
+                <input type="date" name="degree_start" class="form-control" value="{{ filter_values.degree_start|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Degree End</label>
+                <input type="date" name="degree_end" class="form-control" value="{{ filter_values.degree_end|default:'' }}">
+            </div>
+            <div class="col-12 text-end">
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a href="{% url 'admin_students' %}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Reg No</th>
+                        <th>Name</th>
+                        <th>Programme</th>
+                        <th>Batch</th>
+                        <th>Status</th>
+                        <th>Degree Period</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>{{ student.register_number }}</td>
+                        <td>{{ student.name }}</td>
+                        <td>{{ student.programme.name }}</td>
+                        <td>{{ student.batch.batch_year }}</td>
+                        <td><span class="badge bg-{{ 'success' if student.current_status == 'active' else 'secondary' }}">{{ student.get_current_status_display }}</span></td>
+                        <td>{{ student.degree_start_date }} - {{ student.degree_end_date }}</td>
+                        <td>
+                            <a href="{% url 'admin_view_student' student.id %}" class="btn btn-sm btn-info">View</a>
+                            <a href="{% url 'admin_edit_student' student.id %}" class="btn btn-sm btn-warning">Edit</a>
+                            <a href="{% url 'admin_delete_student' student.id %}" class="btn btn-sm btn-danger">Delete</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center">No students found</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3">
+            <p class="text-muted">Total students matching filters: {{ total_count }}</p>
+            <nav aria-label="Student pagination">
+                <ul class="pagination">
+                    {% if students.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ students.previous_page_number }}">Previous</a></li>
+                    {% endif %}
+                    <li class="page-item disabled"><span class="page-link">Page {{ students.number }} of {{ students.paginator.num_pages }}</span></li>
+                    {% if students.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ students.next_page_number }}">Next</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}

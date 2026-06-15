@@ -1,0 +1,124 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}Student Profile{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3>{{ student.name }}</h3>
+        <p class="text-muted mb-0">{{ student.register_number }} | {{ student.programme.name }} | {{ student.batch.batch_year }}</p>
+    </div>
+    <div>
+        <a href="{% url 'admin_edit_student' student.id %}" class="btn btn-warning">Edit Student</a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5>Student Summary</h5>
+                <p><strong>Email:</strong> {{ student.email }}</p>
+                <p><strong>Mobile:</strong> {{ student.mobile|default:'-' }}</p>
+                <p><strong>Status:</strong> {{ student.get_current_status_display }}</p>
+                <p><strong>Degree Period:</strong> {{ student.degree_start_date }} - {{ student.degree_end_date }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <h5>Consolidated Marks</h5>
+                {% if consolidated_data %}
+                    <p><strong>Final Score:</strong> {{ consolidated_data.final_score|default:'-' }}</p>
+                    <p><strong>Average Marks:</strong> {{ consolidated_data.regular_average|default:'-' }}</p>
+                {% else %}
+                    <p>No assessment data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5>Internship Records</h5>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr><th>#</th><th>Organisation</th><th>Type</th><th>Period</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    {% for internship in internships %}
+                        <tr>
+                            <td>{{ internship.internship_number }}</td>
+                            <td>{{ internship.organisation.name }}</td>
+                            <td>{{ internship.get_internship_type_display }}</td>
+                            <td>{{ internship.start_date }} - {{ internship.end_date }}</td>
+                            <td>{{ internship.get_completion_status_display }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5" class="text-center">No internship records found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5>Break History</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr><th>Type</th><th>Period</th><th>Reason</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for break in breaks %}
+                                <tr>
+                                    <td>{{ break.get_break_type_display }}</td>
+                                    <td>{{ break.start_date }} - {{ break.end_date }}</td>
+                                    <td>{{ break.reason|default:'-' }}</td>
+                                    <td>{{ break.approved_by|default:'Pending' }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="4" class="text-center">No break records found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5>Mentor Assignments</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr><th>Mentor</th><th>From</th><th>To</th><th>Level</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for mentor in mentors %}
+                                <tr>
+                                    <td>{{ mentor.faculty_mentor.get_full_name|default:mentor.faculty_mentor.username }}</td>
+                                    <td>{{ mentor.effective_from }}</td>
+                                    <td>{{ mentor.effective_to|default:'Ongoing' }}</td>
+                                    <td>{{ mentor.get_assignment_level_display }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="4" class="text-center">No mentor assignments found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

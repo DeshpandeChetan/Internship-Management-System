@@ -1,0 +1,21 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}Organisation Registration{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Organisation Registration</h4>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Organisation account registration is currently handled by the administrator. Please contact the system administrator for assistance.</p>
+                    <a href="{% url 'login' %}" class="btn btn-primary">Back to Login</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

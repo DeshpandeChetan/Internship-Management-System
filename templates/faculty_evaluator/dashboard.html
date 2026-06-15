@@ -1,0 +1,62 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}Evaluator Dashboard{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="stat-card">
+            <h5>Pending Assessments</h5>
+            <p class="display-6 mb-0">{{ pending_count }}</p>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="stat-card">
+            <h5>Completed</h5>
+            <p class="display-6 mb-0">{{ completed_count }}</p>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="stat-card">
+            <h5>Total Assessed</h5>
+            <p class="display-6 mb-0">{{ total_assessed }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Recent Pending Assessments</h5>
+    </div>
+    <div class="card-body">
+        {% if pending_assessments %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Student</th>
+                        <th>Organisation</th>
+                        <th>Type</th>
+                        <th>Submitted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assessment in pending_assessments %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ assessment.internship_record.student.name }}</td>
+                        <td>{{ assessment.internship_record.organisation.name }}</td>
+                        <td>{{ assessment.get_assessment_type_display }}</td>
+                        <td>{{ assessment.created_at|date:'M d, Y' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p>No pending assessments available.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

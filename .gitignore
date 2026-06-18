@@ -1,5 +1,14 @@
-client_secret*.json
+# Secrets
 .env
+client_secret*.json
+
+# Django
 db.sqlite3
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Virtual env
+venv/
+.env/

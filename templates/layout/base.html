@@ -1,13 +1,16 @@
+<!-- templates/layout/base.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ SITE_NAME|default:'IMS' }} - Internship Management System</title>
+    <title>IMS - Internship Management System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    {% load static %}
     <style>
         :root {
             --primary: #1e3a8a;
@@ -133,9 +136,14 @@
 
         /* Main Content */
         .main-content {
-            margin-left: 280px;
+            margin-left: 0;
             padding: 20px;
             min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.with-sidebar {
+            margin-left: 280px;
         }
 
         /* Top Navbar */
@@ -169,7 +177,6 @@
             font-weight: 600;
         }
 
-        /* Sidebar overlay (mobile) */
         .sidebar-overlay {
             display: none;
             position: fixed;
@@ -198,6 +205,47 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
 
+        /* Data Tables */
+        .data-table-wrapper {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .table thead th {
+            background: var(--light);
+            border-bottom: 2px solid var(--primary);
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        .table tbody tr:hover {
+            background: rgba(79, 70, 229, 0.05);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.3);
+        }
+
+        /* Badges */
+        .badge-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .sidebar {
@@ -216,227 +264,197 @@
     </style>
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <i class="fas fa-briefcase"></i>
-            <h4>IMS</h4>
-            <p>Internship Management System</p>
-        </div>
-
-        <!-- Dynamic Sidebar Navigation based on user role -->
-        <nav class="nav flex-column">
-            {% if user.is_authenticated %}
-                {% if user.role == 'admin' or user.role == 'dept_admin' or user.role == 'hod' %}
-                    <div class="nav-group">
-                        <div class="nav-group-title">Main</div>
-                        <a class="nav-link {% if active_tab == 'admin_dashboard' %}active{% endif %}" href="{% url 'admin_dashboard' %}">
-                            <i class="fas fa-chart-line"></i> Dashboard
-                        </a>
-                    </div>
-                    
-                    <div class="nav-group">
-                        <div class="nav-group-title">Management</div>
-                        <a class="nav-link {% if active_tab == 'admin_users' %}active{% endif %}" href="{% url 'admin_users' %}">
-                            <i class="fas fa-users"></i> Users
-                        </a>
-                        <a class="nav-link {% if active_tab == 'admin_companies' %}active{% endif %}" href="{% url 'admin_companies' %}">
-                            <i class="fas fa-building"></i> Companies
-                        </a>
-                        <a class="nav-link {% if active_tab == 'admin_students' %}active{% endif %}" href="{% url 'admin_students' %}">
-                            <i class="fas fa-user-graduate"></i> Students
-                        </a>
-                        <a class="nav-link {% if active_tab == 'admin_programmes' %}active{% endif %}" href="{% url 'admin_programmes' %}">
-                            <i class="fas fa-university"></i> Programmes
-                        </a>
-                        <a class="nav-link {% if active_tab == 'admin_batches' %}active{% endif %}" href="{% url 'admin_batches' %}">
-                            <i class="fas fa-layer-group"></i> Batches
-                        </a>
-                        <a class="nav-link {% if active_tab == 'admin_config' %}active{% endif %}" href="{% url 'admin_assessment_config' %}">
-                            <i class="fas fa-cogs"></i> Assessment Config
-                        </a>
-                    </div>
-                
-                {% elif user.role == 'faculty_mentor' %}
-                    <div class="nav-group">
-                        <div class="nav-group-title">Mentor</div>
-                        <a class="nav-link {% if active_tab == 'faculty_mentor_dashboard' %}active{% endif %}" href="{% url 'faculty_mentor_dashboard' %}">
-                            <i class="fas fa-chart-line"></i> Dashboard
-                        </a>
-                        <a class="nav-link {% if active_tab == 'faculty_mentor_students' %}active{% endif %}" href="{% url 'faculty_mentor_assigned_students' %}">
-                            <i class="fas fa-user-graduate"></i> Assigned Students
-                        </a>
-                        <a class="nav-link {% if active_tab == 'faculty_mentor_pending' %}active{% endif %}" href="{% url 'faculty_mentor_pending' %}">
-                            <i class="fas fa-hourglass-half"></i> Pending Verifications
-                        </a>
-                    </div>
-                {% elif user.role == 'faculty_evaluator' %}
-                    <div class="nav-group">
-                        <div class="nav-group-title">Evaluator</div>
-                        <a class="nav-link {% if active_tab == 'evaluator_dashboard' %}active{% endif %}" href="{% url 'evaluator_dashboard' %}">
-                            <i class="fas fa-chart-line"></i> Dashboard
-                        </a>
-                        <a class="nav-link {% if active_tab == 'evaluator_pending' %}active{% endif %}" href="{% url 'evaluator_pending_assessments' %}">
-                            <i class="fas fa-tasks"></i> Pending Assessments
-                        </a>
-                        <a class="nav-link {% if active_tab == 'evaluator_history' %}active{% endif %}" href="{% url 'evaluator_history' %}">
-                            <i class="fas fa-history"></i> Assessment History
-                        </a>
-                    </div>
-                {% elif user.role == 'coordinator' %}
-                    <!-- Coordinator Navigation -->
-                    <div class="nav-group">
-                        <div class="nav-group-title">Overview</div>
-                        <a class="nav-link {% if active_tab == 'coordinator_dashboard' %}active{% endif %}" href="{% url 'coordinator_dashboard' %}">
-                            <i class="fas fa-chart-line"></i> Dashboard
-                        </a>
-                    </div>
-                    
-                    <div class="nav-group">
-                        <div class="nav-group-title">Management</div>
-                        <a class="nav-link {% if active_tab == 'manage_internships' %}active{% endif %}" href="{% url 'manage_internships' %}">
-                            <i class="fas fa-plus-circle"></i> Manage Internships
-                        </a>
-                        <a class="nav-link {% if active_tab == 'view_applications' %}active{% endif %}" href="{% url 'view_applications' %}">
-                            <i class="fas fa-eye"></i> View Applications
-                        </a>
-                        <a class="nav-link {% if active_tab == 'student_progress' %}active{% endif %}" href="{% url 'student_progress' %}">
-                            <i class="fas fa-chart-line"></i> Student Progress
-                        </a>
-                    </div>
-                    
-                    <div class="nav-group">
-                        <div class="nav-group-title">Reports</div>
-                        <a class="nav-link {% if active_tab == 'generate_reports' %}active{% endif %}" href="{% url 'generate_reports' %}">
-                            <i class="fas fa-file-alt"></i> Generate Reports
-                        </a>
-                    </div>
-                
-                {% elif user.role == 'company' %}
-                    <!-- Company Navigation -->
-                    <div class="nav-group">
-                        <div class="nav-group-title">Dashboard</div>
-                        <a class="nav-link {% if active_tab == 'company_dashboard' %}active{% endif %}" href="{% url 'company_dashboard' %}">
-                            <i class="fas fa-chart-line"></i> Dashboard
-                        </a>
-                    </div>
-                    
-                    <div class="nav-group">
-                        <div class="nav-group-title">Internships</div>
-                        <a class="nav-link {% if active_tab == 'post_internship' %}active{% endif %}" href="{% url 'post_internship' %}">
-                            <i class="fas fa-plus-circle"></i> Post Internship
-                        </a>
-                        <a class="nav-link {% if active_tab == 'my_internships' %}active{% endif %}" href="{% url 'my_internships' %}">
-                            <i class="fas fa-list"></i> My Internships
-                        </a>
-                        <a class="nav-link {% if active_tab == 'applications_received' %}active{% endif %}" href="{% url 'applications_received' %}">
-                            <i class="fas fa-users"></i> Applications Received
-                        </a>
-                    </div>
-                
-                {% elif user.role == 'student' %}
-                    <!-- Student Navigation -->
-                    <div class="nav-group">
-                        <div class="nav-group-title">Dashboard</div>
-                        <a class="nav-link {% if active_tab == 'student_dashboard' %}active{% endif %}" href="{% url 'student_dashboard' %}">
-                            <i class="fas fa-chart-line"></i> Dashboard
-                        </a>
-                    </div>
-                    
-                    <div class="nav-group">
-                        <div class="nav-group-title">Internships</div>
-                        <a class="nav-link {% if active_tab == 'student_internships' %}active{% endif %}" href="{% url 'student_internships' %}">
-                            <i class="fas fa-briefcase"></i> My Internships
-                        </a>
-                    </div>
-                {% endif %}
-                
-                <div class="sidebar-divider"></div>
-                
-                <div class="nav-group">
-                    <div class="nav-group-title">Account</div>
-                    <a class="nav-link" href="{% url 'view_profile' %}">
-                        <i class="fas fa-user"></i> My Profile
-                    </a>
-                    <a class="nav-link" href="#" id="logoutBtn" style="color: rgba(255,120,120,0.9);"
-                        onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
-                    <form id="logout-form" method="POST" action="{% url 'logout' %}" style="display: none;">
-                        {% csrf_token %}
-                    </form>
-                </div>
-            {% else %}
-                <!-- Public Navigation -->
-                <div class="nav-group">
-                    <div class="nav-group-title">Public</div>
-                    <a class="nav-link" href="{% url 'login' %}">
-                        <i class="fas fa-sign-in-alt"></i> Login
-                    </a>
-                </div>
-            {% endif %}
-        </nav>
-    </div>
-
-    <!-- Sidebar overlay for mobile -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    {% if user.is_authenticated %}
+    {% include 'layout/sidebar.html' %}
+    {% endif %}
 
     <!-- Main Content -->
-    <div class="main-content">
+    <div class="main-content{% if user.is_authenticated %} with-sidebar{% endif %}">
         <div class="top-navbar">
             <div>
+                {% if user.is_authenticated %}
                 <button class="btn btn-link d-md-none" id="sidebarToggle">
                     <i class="fas fa-bars fa-lg"></i>
                 </button>
+                {% endif %}
                 <h4 class="page-title d-inline-block ms-2">{% block page_title %}Dashboard{% endblock %}</h4>
             </div>
-            
+
             {% if user.is_authenticated %}
             <div class="dropdown">
-                <a href="#" class="d-flex align-items-center gap-3 text-decoration-none text-dark" data-bs-toggle="dropdown">
+                <a href="#" class="d-flex align-items-center gap-3 text-decoration-none text-dark"
+                    data-bs-toggle="dropdown">
                     <div class="fw-semibold d-none d-md-block" style="font-size:0.92rem;">
-                        {{ user.get_full_name|default:user.username }}
-                        <span class="text-muted">({{ user.get_role_display }})</span>
+                        {{ user.get_full_name|default:user.email }}
+                        <span class="text-muted">({{ user.profile.get_role_display }})</span>
                     </div>
                     <div class="user-avatar">
-                        {{ user.username|first|upper }}
+                        {{ user.email|first|upper }}
                     </div>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
-                    <li><a class="dropdown-item" href="{% url 'view_profile' %}">
-                        <i class="fas fa-user-circle me-2"></i> Profile
-                    </a></li>
-                    <li><a class="dropdown-item" href="{% url 'edit_profile' %}">
-                        <i class="fas fa-cog me-2"></i> Settings
-                    </a></li>
-                    <li><a class="dropdown-item" href="{% url 'notifications' %}">
-                        <i class="fas fa-bell me-2"></i> Notifications
-                    </a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item text-danger" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                        <i class="fas fa-sign-out-alt me-2"></i> Logout
-                    </a></li>
+                    <li><a class="dropdown-item" href="{% url 'profile' %}">
+                            <i class="fas fa-user-circle me-2"></i> Profile
+                        </a></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item text-danger" href="#"
+                            onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                            <i class="fas fa-sign-out-alt me-2"></i> Logout
+                        </a></li>
                 </ul>
             </div>
             {% endif %}
         </div>
 
-        <!-- Breadcrumbs -->
-        {% block breadcrumb %}{% endblock %}
-
         <!-- Messages -->
         {% if messages %}
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endfor %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <i
+                class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
         {% endif %}
 
-        <!-- Main Content Block -->
+        <!-- Content Block -->
         {% block content %}{% endblock %}
+    </div>
+
+    <!-- ============================================ -->
+    <!-- REUSABLE MODALS - Available on all pages      -->
+    <!-- ============================================ -->
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white" style="border-radius: 15px 15px 0 0;">
+                    <h5 class="modal-title">
+                        <i class="fas fa-trash-alt me-2"></i>Confirm Delete
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3 d-block"></i>
+                    <p class="mb-1 fw-semibold" id="deleteMessage">Are you sure you want to delete this item?</p>
+                    <h6 class="text-muted small mb-0">This action cannot be undone.</h6>
+                </div>
+                <div class="modal-footer justify-content-center gap-2">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <form method="post" id="deleteForm">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger px-4">
+                            <i class="fas fa-trash me-2"></i>Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Add/Edit Modal -->
+    <div class="modal fade" id="genericModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header" id="genericModalHeader"
+                    style="background: linear-gradient(135deg, #1e3a8a, #1e40af); color: white; border-radius: 15px 15px 0 0;">
+                    <h5 class="modal-title" id="genericModalTitle">
+                        <i class="fas fa-plus me-2"></i>Add New
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div id="genericModalBody">
+                    <!-- Content loaded via AJAX -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Details Modal -->
+    <div class="modal fade" id="viewModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header"
+                    style="background: linear-gradient(135deg, #1e3a8a, #1e40af); color: white; border-radius: 15px 15px 0 0;">
+                    <h5 class="modal-title">
+                        <i class="fas fa-eye me-2"></i>Details
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="viewModalBody">
+                    <!-- Content loaded via AJAX -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Toggle Modal -->
+    <div class="modal fade" id="toggleModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
+            <div class="modal-content">
+                <div class="modal-header" id="toggleModalHeader" style="border-radius: 15px 15px 0 0;">
+                    <h5 class="modal-title" id="toggleModalTitle">
+                        <i class="fas fa-power-off me-2"></i>Toggle Status
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <i class="fas fa-user-lock fa-3x mb-3 d-block" id="toggleIcon"></i>
+                    <p class="mb-1 fw-semibold" id="toggleMessage">Are you sure you want to change status?</p>
+                    <h6 class="text-muted small mb-0" id="toggleSubMessage">This action can be reversed later.</h6>
+                </div>
+                <div class="modal-footer justify-content-center gap-2">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <a href="#" class="btn px-4" id="toggleButton">
+                        <i class="fas fa-power-off me-2"></i>Confirm
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div class="modal fade" id="logoutModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
+            <div class="modal-content">
+                <div class="modal-header"
+                    style="background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border-radius: 15px 15px 0 0;">
+                    <h5 class="modal-title">
+                        <i class="fas fa-sign-out-alt me-2"></i>Confirm Logout
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <i class="fas fa-power-off fa-3x text-danger mb-3 d-block"></i>
+                    <p class="mb-1 fw-semibold">Are you sure you want to logout?</p>
+                    <h6 class="text-muted small mb-0">You will be redirected to the login page.</h6>
+                </div>
+                <div class="modal-footer justify-content-center gap-2">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <form method="post" action="{% url 'account_logout' %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger px-4">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->
@@ -454,19 +472,21 @@
         const toggleBtn = document.getElementById('sidebarToggle');
 
         function openSidebar() {
+            if (!sidebar || !overlay) return;
             sidebar.classList.add('show');
             overlay.classList.add('active');
             document.body.style.overflow = 'hidden';
         }
-        
+
         function closeSidebar() {
+            if (!sidebar || !overlay) return;
             sidebar.classList.remove('show');
             overlay.classList.remove('active');
             document.body.style.overflow = '';
         }
 
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', function(e) {
+        if (toggleBtn && sidebar) {
+            toggleBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 sidebar.classList.contains('show') ? closeSidebar() : openSidebar();
             });
@@ -476,13 +496,20 @@
             overlay.addEventListener('click', closeSidebar);
         }
 
-        // Close sidebar on nav link click for mobile
-        sidebar.querySelectorAll('.nav-link').forEach(function(link) {
-            link.addEventListener('click', function() {
-                if (window.innerWidth <= 768) closeSidebar();
+        if (sidebar) {
+            sidebar.querySelectorAll('.nav-link').forEach(function (link) {
+                link.addEventListener('click', function () {
+                    if (window.innerWidth <= 768) closeSidebar();
+                });
             });
-        });
+        }
+
+        function showLogoutModal() {
+            const modal = new bootstrap.Modal(document.getElementById('logoutModal'));
+            modal.show();
+        }
     </script>
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>

@@ -1,0 +1,42 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}Verify Internship{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5>Verify Internship</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Student:</strong> {{ internship.student.name }}</p>
+                <p><strong>Internship:</strong> {{ internship.internship_number }}</p>
+                <p><strong>Type:</strong> {{ internship.get_internship_type_display }}</p>
+                <p><strong>Organisation:</strong> {{ internship.organisation.name }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Start Date:</strong> {{ internship.start_date|date:"d M Y" }}</p>
+                <p><strong>End Date:</strong> {{ internship.end_date|date:"d M Y" }}</p>
+                <p><strong>Duration:</strong> {{ internship.duration }} days</p>
+                <p><strong>Mode:</strong> {{ internship.get_mode_display }}</p>
+            </div>
+        </div>
+        <div class="mt-3">
+            <p><strong>Nature of Work:</strong></p>
+            <p>{{ internship.nature_of_work|default:"-" }}</p>
+        </div>
+        <div class="mt-3">
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-check"></i> Verify & Approve
+                </button>
+                <a href="{% url 'mentor_pending_verification' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

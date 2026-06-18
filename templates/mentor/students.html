@@ -1,0 +1,55 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}Assigned Students{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5>Assigned Students</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="studentsTable">
+                <thead>
+                    <tr>
+                        <th>Reg No</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Programme</th>
+                        <th>Batch</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assignment in assignments %}
+                    <tr>
+                        <td>{{ assignment.student.register_number }}</td>
+                        <td>{{ assignment.student.name }}</td>
+                        <td>{{ assignment.student.email }}</td>
+                        <td>{{ assignment.student.programme.code }}</td>
+                        <td>{{ assignment.student.batch.name }}</td>
+                        <td>
+                            <a href="{% url 'mentor_student_detail' assignment.student.id %}" class="btn btn-sm btn-info">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No students assigned</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('#studentsTable').DataTable();
+    });
+</script>
+{% endblock %}
+{% endblock %}

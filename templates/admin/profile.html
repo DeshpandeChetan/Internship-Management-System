@@ -1,0 +1,41 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="user-avatar mx-auto mb-3" style="width: 100px; height: 100px; font-size: 2.5rem; display: flex; align-items: center; justify-content: center;">
+                    {{ user.email|first|upper }}
+                </div>
+                <h5>{{ user.get_full_name|default:user.email }}</h5>
+                <p class="text-muted">{{ user.profile.get_role_display }}</p>
+                <p class="text-muted small">{{ user.email }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h6>Profile Details</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Email:</strong> {{ user.email }}</p>
+                        <p><strong>First Name:</strong> {{ user.first_name|default:"-" }}</p>
+                        <p><strong>Last Name:</strong> {{ user.last_name|default:"-" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Role:</strong> {{ user.profile.get_role_display }}</p>
+                        <p><strong>Phone:</strong> {{ user.profile.phone_number|default:"-" }}</p>
+                        <p><strong>Joined:</strong> {{ user.date_joined|date:"d M Y" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5>User Profile</h5>
+    </div>
+    <div class="card-body">
+        <p><strong>Email:</strong> {{ user.email }}</p>
+        <p><strong>Full Name:</strong> {{ user.get_full_name|default:"Not set" }}</p>
+        <p><strong>Role:</strong> {{ user.profile.get_role_display }}</p>
+        <p><strong>Phone:</strong> {{ user.profile.phone_number|default:"Not set" }}</p>
+    </div>
+</div>
+{% endblock %}

@@ -3,50 +3,74 @@
 {% block page_title %}My Internships{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>My Internships</h2>
-    <a href="{% url 'student_add_internship' %}" class="btn btn-primary">Add Internship</a>
-</div>
-
-<div class="card shadow-sm">
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">My Internships</h5>
+        <a href="{% url 'student_internship_add' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Add Internship
+        </a>
+    </div>
     <div class="card-body">
-        {% if internships %}
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Organisation</th>
-                            <th>Type</th>
-                            <th>Start</th>
-                            <th>End</th>
-                            <th>Verification</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for internship in internships %}
-                        <tr>
-                            <td>{{ forloop.counter }}</td>
-                            <td>{{ internship.organisation.name }}</td>
-                            <td>{{ internship.get_internship_type_display }}</td>
-                            <td>{{ internship.start_date }}</td>
-                            <td>{{ internship.end_date }}</td>
-                            <td>{{ internship.get_verification_status_display }}</td>
-                            <td>
-                                <a href="{% url 'student_internship_details' internship.id %}" class="btn btn-sm btn-outline-primary">View</a>
-                                {% if internship.verification_status == 'draft' %}
-                                  <a href="{% url 'student_edit_internship' internship.id %}" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="mb-0">You do not have any internship records yet.</p>
-        {% endif %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="internshipsTable">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Number</th>
+                        <th>Organisation</th>
+                        <th>Period</th>
+                        <th>Status</th>
+                        <th>Verification</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for internship in internships %}
+                    <tr>
+                        <td>{{ internship.get_internship_type_display }}</td>
+                        <td>{{ internship.internship_number }}</td>
+                        <td>{{ internship.organisation.name }}</td>
+                        <td>{{ internship.start_date|date:"d M Y" }} - {{ internship.end_date|date:"d M Y" }}</td>
+                        <td>
+                            <span class="badge bg-{% if internship.completion_status == 'completed' %}success{% elif internship.completion_status == 'pending' %}warning{% else %}danger{% endif %}">
+                                {{ internship.get_completion_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if internship.verification_status == 'verified' %}success{% elif internship.verification_status == 'submitted' %}info{% elif internship.verification_status == 'draft' %}secondary{% elif internship.verification_status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                {{ internship.get_verification_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'student_internship_detail' internship.id %}" class="btn btn-sm btn-info">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if internship.verification_status == 'draft' %}
+                            <a href="{% url 'student_internship_edit' internship.id %}" class="btn btn-sm btn-warning">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'student_internship_delete' internship.id %}" class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No internships found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('#internshipsTable').DataTable();
+    });
+</script>
+{% endblock %}
 {% endblock %}

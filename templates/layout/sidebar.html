@@ -1,0 +1,140 @@
+<!-- templates/layout/sidebar.html -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <i class="fas fa-briefcase"></i>
+        <h4>IMS</h4>
+        <p>Internship Management System</p>
+    </div>
+
+    <nav class="nav flex-column">
+        {% if user.is_authenticated %}
+            {% with role=user.profile.role %}
+            
+            <!-- Dashboard - Common for all -->
+            <div class="nav-group">
+                <div class="nav-group-title">Dashboard</div>
+                <a class="nav-link {% if active_tab == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                    <i class="fas fa-chart-line"></i> Dashboard
+                </a>
+            </div>
+
+            <!-- ADMIN / DEPT ADMIN Navigation -->
+            {% if role == 'admin' or role == 'dept_admin' %}
+            <div class="nav-group">
+                <div class="nav-group-title">Management</div>
+                <a class="nav-link {% if active_tab == 'admin_users' %}active{% endif %}" href="{% url 'admin_users' %}">
+                    <i class="fas fa-users"></i> Users
+                </a>
+                <a class="nav-link {% if active_tab == 'admin_students' %}active{% endif %}" href="{% url 'admin_students' %}">
+                    <i class="fas fa-user-graduate"></i> Students
+                </a>
+                <a class="nav-link {% if active_tab == 'admin_organisations' %}active{% endif %}" href="{% url 'admin_organisations' %}">
+                    <i class="fas fa-building"></i> Organisations
+                </a>
+                <a class="nav-link {% if active_tab == 'admin_internships' %}active{% endif %}" href="{% url 'admin_internships' %}">
+                    <i class="fas fa-briefcase"></i> Internships
+                </a>
+                <a class="nav-link {% if active_tab == 'admin_mentor_assignments' %}active{% endif %}" href="{% url 'admin_mentor_assignments' %}">
+                    <i class="fas fa-chalkboard-teacher"></i> Mentor Assignments
+                </a>
+                <a class="nav-link {% if active_tab == 'admin_breaks' %}active{% endif %}" href="{% url 'admin_breaks' %}">
+                    <i class="fas fa-pause"></i> Breaks
+                </a>
+                <a class="nav-link {% if active_tab == 'admin_settings' %}active{% endif %}" href="{% url 'admin_settings' %}">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- FACULTY MENTOR Navigation -->
+            {% if role == 'faculty_mentor' %}
+            <div class="nav-group">
+                <div class="nav-group-title">Mentoring</div>
+                <a class="nav-link {% if active_tab == 'mentor_assigned_students' %}active{% endif %}" href="{% url 'mentor_assigned_students' %}">
+                    <i class="fas fa-users"></i> My Students
+                </a>
+                <a class="nav-link {% if active_tab == 'mentor_pending_verification' %}active{% endif %}" href="{% url 'mentor_pending_verification' %}">
+                    <i class="fas fa-clock"></i> Pending Verification
+                </a>
+                <a class="nav-link {% if active_tab == 'mentor_all_internships' %}active{% endif %}" href="{% url 'mentor_all_internships' %}">
+                    <i class="fas fa-briefcase"></i> All Internships
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- EVALUATOR Navigation -->
+            {% if role == 'evaluator' %}
+            <div class="nav-group">
+                <div class="nav-group-title">Assessment</div>
+                <a class="nav-link {% if active_tab == 'evaluator_pending_assessments' %}active{% endif %}" href="{% url 'evaluator_pending_assessments' %}">
+                    <i class="fas fa-tasks"></i> Pending Assessments
+                </a>
+                <a class="nav-link {% if active_tab == 'evaluator_history' %}active{% endif %}" href="{% url 'evaluator_history' %}">
+                    <i class="fas fa-history"></i> Assessment History
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- HOD Navigation -->
+            {% if role == 'hod' %}
+            <div class="nav-group">
+                <div class="nav-group-title">Overview</div>
+                <a class="nav-link {% if active_tab == 'hod_students' %}active{% endif %}" href="{% url 'hod_students' %}">
+                    <i class="fas fa-user-graduate"></i> Students
+                </a>
+                <a class="nav-link {% if active_tab == 'hod_approvals' %}active{% endif %}" href="{% url 'hod_approvals' %}">
+                    <i class="fas fa-check-circle"></i> Approvals
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- STUDENT Navigation -->
+            {% if role == 'student' %}
+            <div class="nav-group">
+                <div class="nav-group-title">My Records</div>
+                <a class="nav-link {% if active_tab == 'my_internships' %}active{% endif %}" href="{% url 'my_internships' %}">
+                    <i class="fas fa-briefcase"></i> My Internships
+                </a>
+                <a class="nav-link {% if active_tab == 'my_mentor' %}active{% endif %}" href="{% url 'my_mentor' %}">
+                    <i class="fas fa-chalkboard-teacher"></i> My Mentor
+                </a>
+                <a class="nav-link {% if active_tab == 'my_marks' %}active{% endif %}" href="{% url 'my_marks' %}">
+                    <i class="fas fa-star"></i> My Marks
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Reports - Common for Admin, Dept Admin, HOD, Mentor -->
+            {% if role == 'admin' or role == 'dept_admin' or role == 'hod' or role == 'faculty_mentor' %}
+            <div class="nav-group">
+                <div class="nav-group-title">Reports</div>
+                <a class="nav-link {% if active_tab == 'admin_reports' %}active{% endif %}" href="{% url 'admin_reports' %}">
+                    <i class="fas fa-file-alt"></i> All Reports
+                </a>
+                <a class="nav-link {% if active_tab == 'consolidated' %}active{% endif %}" href="{% url 'consolidated_report' %}">
+                    <i class="fas fa-chart-bar"></i> Consolidated Marks
+                </a>
+            </div>
+            {% endif %}
+
+            {% endwith %}
+        {% endif %}
+
+        <div class="sidebar-divider"></div>
+
+        <!-- Account -->
+        <div class="nav-group">
+            <div class="nav-group-title">Account</div>
+            <a class="nav-link {% if active_tab == 'profile' %}active{% endif %}" href="{% url 'profile' %}">
+                <i class="fas fa-user"></i> My Profile
+            </a>
+            <a class="nav-link" href="#" id="logoutBtn" style="color: rgba(255,120,120,0.9);"
+                onclick="event.preventDefault(); showLogoutModal();">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </nav>
+</div>
+
+<!-- Sidebar overlay for mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>

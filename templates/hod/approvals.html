@@ -1,0 +1,62 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}Pending Approvals{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5>Pending Approvals</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="approvalsTable">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Internship</th>
+                        <th>Organisation</th>
+                        <th>Period</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for internship in internships %}
+                    <tr>
+                        <td>{{ internship.student.name }}</td>
+                        <td>{{ internship.internship_number }}</td>
+                        <td>{{ internship.organisation.name }}</td>
+                        <td>{{ internship.start_date|date:"d M Y" }} - {{ internship.end_date|date:"d M Y" }}</td>
+                        <td>
+                            <form method="post" action="{% url 'hod_approve' internship.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    <i class="fas fa-check"></i> Approve
+                                </button>
+                            </form>
+                            <form method="post" action="{% url 'hod_reject' internship.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No pending approvals</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('#approvalsTable').DataTable();
+    });
+</script>
+{% endblock %}
+{% endblock %}

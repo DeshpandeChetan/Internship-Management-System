@@ -1,0 +1,36 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}Consolidated Marks Report{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5>Consolidated Marks Report</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            Consolidated marks report will be displayed here once data is available.
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover" id="reportTable">
+                <thead>
+                    <tr>
+                        <th>Reg No</th>
+                        <th>Student Name</th>
+                        <th>Regular Avg</th>
+                        <th>Assessment Score</th>
+                        <th>Final Score</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="6" class="text-center">No data available</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

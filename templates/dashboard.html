@@ -1,0 +1,38 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <h6>Total Students</h6>
+            <h2>{{ total_students|default:0 }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <h6>Organisations</h6>
+            <h2>{{ total_organisations|default:0 }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <h6>Internships</h6>
+            <h2>{{ total_internships|default:0 }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <h6>Pending Verification</h6>
+            <h2>{{ pending_verifications|default:0 }}</h2>
+        </div>
+    </div>
+</div>
+<div class="card mt-3">
+    <div class="card-body">
+        <h5>Welcome to IMS</h5>
+        <p>Internship Management System - Manage internships, mentors, assessments, and more.</p>
+    </div>
+</div>
+{% endblock %}

@@ -3,60 +3,77 @@
 {% block page_title %}Student Dashboard{% endblock %}
 
 {% block content %}
-<div class="row g-4">
-    <div class="col-lg-4">
-        <div class="stat-card">
-            <h5>Total Internships</h5>
-            <p class="display-6 mb-0">{{ total_internships }}</p>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card stat-card">
+            <div class="card-body">
+                <h6 class="text-muted">Total Internships</h6>
+                <h2 class="mb-0">{{ total_internships }}</h2>
+            </div>
         </div>
     </div>
-    <div class="col-lg-4">
-        <div class="stat-card">
-            <h5>Completed</h5>
-            <p class="display-6 mb-0">{{ completed_internships }}</p>
+    <div class="col-md-4">
+        <div class="card stat-card">
+            <div class="card-body">
+                <h6 class="text-muted">Completed</h6>
+                <h2 class="mb-0">{{ completed_internships }}</h2>
+            </div>
         </div>
     </div>
-    <div class="col-lg-4">
-        <div class="stat-card">
-            <h5>Pending Verifications</h5>
-            <p class="display-6 mb-0">{{ pending_verifications }}</p>
+    <div class="col-md-4">
+        <div class="card stat-card">
+            <div class="card-body">
+                <h6 class="text-muted">Pending</h6>
+                <h2 class="mb-0">{{ pending_internships }}</h2>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="card shadow-sm mt-4">
-    <div class="card-header">
-        <h5 class="mb-0">Recent Internships</h5>
-    </div>
-    <div class="card-body">
-        {% if recent_internships %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Organisation</th>
-                            <th>Type</th>
-                            <th>Status</th>
-                            <th>Verification</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for internship in recent_internships %}
-                        <tr>
-                            <td>{{ forloop.counter }}</td>
-                            <td>{{ internship.organisation.name }}</td>
-                            <td>{{ internship.get_internship_type_display }}</td>
-                            <td>{{ internship.get_completion_status_display }}</td>
-                            <td>{{ internship.get_verification_status_display }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6>Quick Actions</h6>
             </div>
-        {% else %}
-            <p class="mb-0">No internship records found yet.</p>
-        {% endif %}
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <a href="{% url 'student_internship_add' %}" class="btn btn-primary w-100">
+                            <i class="fas fa-plus"></i> Add Internship
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{% url 'my_internships' %}" class="btn btn-info w-100">
+                            <i class="fas fa-list"></i> View All
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{% url 'my_mentor' %}" class="btn btn-success w-100">
+                            <i class="fas fa-chalkboard-teacher"></i> My Mentor
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{% url 'my_marks' %}" class="btn btn-warning w-100">
+                            <i class="fas fa-star"></i> My Marks
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6>Welcome, {{ user.get_full_name|default:user.email }}</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Register Number:</strong> {{ student.register_number }}</p>
+                <p><strong>Programme:</strong> {{ student.programme.name }}</p>
+                <p><strong>Batch:</strong> {{ student.batch.name }}</p>
+                <p><strong>Status:</strong> {{ student.get_status_display }}</p>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -1,0 +1,30 @@
+<!-- templates/authentication/login.html -->
+{% extends 'layout/base.html' %}
+{% load socialaccount %}
+
+{% block page_title %}Login - IMS{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center" style="min-height: 80vh; align-items: center;">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow border-0">
+            <div class="card-body p-5 text-center">
+                <i class="fas fa-briefcase" style="font-size: 4rem; color: var(--primary);"></i>
+                <h2 class="mt-3 fw-bold" style="color: var(--primary);">IMS</h2>
+                <p class="text-muted">Internship Management System</p>
+                <hr>
+                <h5 class="mb-4">Sign in to continue</h5>
+                
+                <a href="{% provider_login_url 'google' %}" class="btn btn-outline-dark w-100 py-2">
+                    <i class="fab fa-google me-2"></i> Sign in with Google
+                </a>
+                
+                <p class="mt-4 text-muted small">
+                    Only authorized users can access this system.<br>
+                    Please use your institutional Google account.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

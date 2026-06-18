@@ -1,117 +1,448 @@
 {% extends 'layout/base.html' %}
+{% load static %}
 
-{% block page_title %}Student Management{% endblock %}
+{% block page_title %}Manage Students{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Desktop styles */
+    @media (min-width: 769px) {
+        .data-table-wrapper .table-responsive {
+            overflow-x: visible !important;
+            overflow-y: visible !important;
+        }
+
+        #studentsTable {
+            width: 100% !important;
+        }
+
+        #studentsTable th,
+        #studentsTable td {
+            white-space: nowrap;
+        }
+        
+        #studentsTable td:last-child {
+            overflow: visible !important;
+        }
+
+        .dataTables_wrapper {
+            width: 100% !important;
+            overflow: visible !important;
+        }
+        
+        .data-table-wrapper {
+            overflow: visible !important;
+        }
+    }
+
+    /* Mobile: allow horizontal scroll */
+    @media (max-width: 768px) {
+        .dataTables_wrapper {
+            overflow-x: auto !important;
+        }
+        .table-responsive {
+            overflow-x: auto !important;
+        }
+    }
+
+    /* DataTable styling */
+    div.dataTables_wrapper div.dataTables_length select {
+        min-width: 70px;
+    }
+
+    /* Dropdown styling */
+    .dropdown-menu {
+        z-index: 9999 !important;
+        position: absolute;
+    }
+    
+    .dropdown-item {
+        cursor: pointer;
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+    
+    .dropdown-item i {
+        width: 18px;
+        text-align: center;
+    }
+    
+    .dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    /* Prevent vertical scrollbar shift when modal opens */
+    body.modal-open {
+        overflow-y: auto !important;
+        padding-right: 0 !important;
+    }
+    
+    .data-table-wrapper,
+    .dataTables_wrapper,
+    .table-responsive {
+        overflow: visible !important;
+    }
+
+    /* Search box styling */
+    .dataTables_wrapper .dataTables_filter {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 12px;
+    }
+
+    .dataTables_wrapper .dataTables_filter label {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 0;
+    }
+
+    .dataTables_wrapper .dataTables_filter input {
+        width: 260px !important;
+        max-width: 100%;
+        border-radius: 8px;
+        border: 1px solid #ced4da;
+        padding: 6px 12px;
+        margin-left: 0 !important;
+    }
+
+    .dataTables_wrapper .dataTables_length select {
+        min-width: 75px;
+        padding: 5px 32px 5px 10px !important;
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+        .dataTables_wrapper .row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            width: 100%;
+            text-align: left !important;
+            justify-content: flex-start !important;
+        }
+
+        .dataTables_wrapper .dataTables_filter label {
+            justify-content: flex-start;
+        }
+
+        .dataTables_wrapper .dataTables_filter input {
+            width: 100% !important;
+        }
+    }
+
+    /* Status badge colors */
+    .badge-status {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 500;
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3>Student Management</h3>
-    <div>
-        <a href="{% url 'admin_add_student' %}" class="btn btn-primary me-2">Add Student</a>
-        <a href="{% url 'admin_bulk_upload_students' %}" class="btn btn-secondary">Bulk Upload</a>
+
+<!-- Top Action Bar -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-primary" onclick="openAddModal('student')">
+                    <i class="fas fa-plus me-2"></i>Add Student
+                </button>
+                <button type="button" class="btn btn-outline-primary" onclick="openBulkUploadModal()">
+                    <i class="fas fa-upload me-2"></i>Bulk Upload
+                </button>
+                <a href="#" class="btn btn-outline-success">
+                    <i class="fas fa-download me-2"></i>Export
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="card mb-4">
+<!-- Filters -->
+<div class="card mb-3">
     <div class="card-body">
-        <form method="get" class="row g-3">
-            <div class="col-md-3">
-                <label class="form-label">Search</label>
-                <input type="text" name="search" value="{{ filter_values.search|default:'' }}" class="form-control" placeholder="Name, reg no, email">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Programme</label>
-                <select name="programme" class="form-select">
-                    <option value="">All</option>
+        <form method="get" class="row g-3" id="filterForm">
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Programme</label>
+                <select name="programme" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All Programmes</option>
                     {% for programme in programmes %}
-                        <option value="{{ programme.id }}" {% if filter_values.programme == programme.id|stringformat:'s' %}selected{% endif %}>{{ programme.name }}</option>
+                    <option value="{{ programme.id }}" {% if request.GET.programme == programme.id|stringformat:"s" %}selected{% endif %}>
+                        {{ programme.name }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label">Batch</label>
-                <select name="batch" class="form-select">
-                    <option value="">All</option>
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Batch</label>
+                <select name="batch" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All Batches</option>
                     {% for batch in batches %}
-                        <option value="{{ batch.id }}" {% if filter_values.batch == batch.id|stringformat:'s' %}selected{% endif %}>{{ batch.batch_year }}</option>
+                    <option value="{{ batch.id }}" {% if request.GET.batch == batch.id|stringformat:"s" %}selected{% endif %}>
+                        {{ batch.name }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select">
-                    <option value="">All</option>
-                    {% for value, label in status_choices %}
-                        <option value="{{ value }}" {% if filter_values.status == value %}selected{% endif %}>{{ label }}</option>
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All Status</option>
+                    {% for status_code, status_label in status_choices %}
+                    <option value="{{ status_code }}" {% if request.GET.status == status_code %}selected{% endif %}>
+                        {{ status_label }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label">Degree Start</label>
-                <input type="date" name="degree_start" class="form-control" value="{{ filter_values.degree_start|default:'' }}">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Degree End</label>
-                <input type="date" name="degree_end" class="form-control" value="{{ filter_values.degree_end|default:'' }}">
-            </div>
-            <div class="col-12 text-end">
-                <button type="submit" class="btn btn-primary">Filter</button>
-                <a href="{% url 'admin_students' %}" class="btn btn-outline-secondary">Reset</a>
+            <div class="col-12 col-sm-6 col-md-3 d-flex align-items-end">
+                <a href="{% url 'admin_students' %}" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="fas fa-undo me-1"></i>Reset Filters
+                </a>
             </div>
         </form>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th>Reg No</th>
-                        <th>Name</th>
-                        <th>Programme</th>
-                        <th>Batch</th>
-                        <th>Status</th>
-                        <th>Degree Period</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for student in students %}
-                    <tr>
-                        <td>{{ student.register_number }}</td>
-                        <td>{{ student.name }}</td>
-                        <td>{{ student.programme.name }}</td>
-                        <td>{{ student.batch.batch_year }}</td>
-                        <td><span class="badge bg-{{ 'success' if student.current_status == 'active' else 'secondary' }}">{{ student.get_current_status_display }}</span></td>
-                        <td>{{ student.degree_start_date }} - {{ student.degree_end_date }}</td>
-                        <td>
-                            <a href="{% url 'admin_view_student' student.id %}" class="btn btn-sm btn-info">View</a>
-                            <a href="{% url 'admin_edit_student' student.id %}" class="btn btn-sm btn-warning">Edit</a>
-                            <a href="{% url 'admin_delete_student' student.id %}" class="btn btn-sm btn-danger">Delete</a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="7" class="text-center">No students found</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<!-- Students Table -->
+<div class="data-table-wrapper">
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle" id="studentsTable">
+            <thead>
+                <tr>
+                    <th>Reg No</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Programme</th>
+                    <th>Batch</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td><strong>{{ student.register_number }}</strong></td>
+                    <td>{{ student.name }}</td>
+                    <td>{{ student.email }}</td>
+                    <td>{{ student.programme.code }}</td>
+                    <td>{{ student.batch.name }}</td>
+                    <td>
+                        <span class="badge-status bg-{% if student.status == 'active' %}success{% elif student.status == 'completed' %}info{% elif student.status == 'on_break' %}warning{% else %}danger{% endif %} text-white">
+                            {{ student.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-ellipsis-v"></i> Actions
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <button class="dropdown-item" onclick="viewStudent('{{ student.id }}')">
+                                        <i class="fas fa-eye text-info me-2"></i> View
+                                    </button>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item" onclick="editStudent('{{ student.id }}')">
+                                        <i class="fas fa-edit text-primary me-2"></i> Edit
+                                    </button>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item" onclick="viewInternships('{{ student.id }}')">
+                                        <i class="fas fa-briefcase text-success me-2"></i> Internships
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button class="dropdown-item text-danger" onclick="confirmDelete('student', '{{ student.id }}', '{{ student.name }}')">
+                                        <i class="fas fa-trash-alt text-danger me-2"></i> Delete
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <i class="fas fa-user-graduate fa-2x text-muted d-block mb-2"></i>
+                        No students found
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 
-        <div class="mt-3">
-            <p class="text-muted">Total students matching filters: {{ total_count }}</p>
-            <nav aria-label="Student pagination">
-                <ul class="pagination">
-                    {% if students.has_previous %}
-                        <li class="page-item"><a class="page-link" href="?page={{ students.previous_page_number }}">Previous</a></li>
-                    {% endif %}
-                    <li class="page-item disabled"><span class="page-link">Page {{ students.number }} of {{ students.paginator.num_pages }}</span></li>
-                    {% if students.has_next %}
-                        <li class="page-item"><a class="page-link" href="?page={{ students.next_page_number }}">Next</a></li>
-                    {% endif %}
-                </ul>
-            </nav>
+<!-- Bulk Upload Modal (inline for this page) -->
+<div class="modal fade" id="bulkUploadModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #1e3a8a, #1e40af); color: white; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title">
+                    <i class="fas fa-upload me-2"></i>Bulk Upload Students
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'bulk_student_upload' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">CSV File</label>
+                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                        <small class="text-muted">Required columns: REGISTER_NUMBER, NAME, EMAIL, PROGRAMME, BATCH</small>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <a href="#" class="alert-link">Download sample CSV template</a>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+
+<script>
+// Initialize DataTable
+$(document).ready(function () {
+    $('#studentsTable').DataTable({
+        responsive: false,
+        autoWidth: true,
+        scrollX: false,
+        scrollCollapse: false,
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+        order: [[0, 'asc']],
+        columnDefs: [
+            {
+                targets: -1,
+                orderable: false,
+                searchable: false
+            }
+        ],
+        language: {
+            search: "",
+            searchPlaceholder: "Search students...",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ students",
+            infoEmpty: "No students found",
+            infoFiltered: "(filtered from _MAX_ total)",
+            emptyTable: "No students available",
+            zeroRecords: "No matching students found",
+            paginate: {
+                first: '<i class="fas fa-angle-double-left"></i>',
+                last: '<i class="fas fa-angle-double-right"></i>',
+                next: '<i class="fas fa-angle-right"></i>',
+                previous: '<i class="fas fa-angle-left"></i>'
+            }
+        },
+        dom: "<'row align-items-center g-2 mb-3'<'col-12 col-md-6'l><'col-12 col-md-6'f>>" +
+             "<'row'<'col-12'tr>>" +
+             "<'row align-items-center g-2 mt-3'<'col-12 col-md-5'i><'col-12 col-md-7'p>>"
+    });
+});
+
+// ============================================
+// GLOBAL FUNCTIONS (using reusable modals)
+// ============================================
+
+function openAddModal(type) {
+    const modal = new bootstrap.Modal(document.getElementById('genericModal'));
+    const header = document.getElementById('genericModalHeader');
+    const title = document.getElementById('genericModalTitle');
+    const body = document.getElementById('genericModalBody');
+    
+    if (type === 'student') {
+        header.className = 'modal-header';
+        header.style.background = 'linear-gradient(135deg, #1e3a8a, #1e40af)';
+        header.style.color = 'white';
+        title.innerHTML = '<i class="fas fa-user-plus me-2"></i>Add New Student';
+        
+        // Load form via AJAX
+        $.get('/dashboard/admin/students/add/', function(data) {
+            body.innerHTML = data;
+            modal.show();
+        });
+    }
+}
+
+function editStudent(id) {
+    const modal = new bootstrap.Modal(document.getElementById('genericModal'));
+    const header = document.getElementById('genericModalHeader');
+    const title = document.getElementById('genericModalTitle');
+    const body = document.getElementById('genericModalBody');
+    
+    header.className = 'modal-header';
+    header.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+    header.style.color = 'white';
+    title.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Student';
+    
+    $.get(`/dashboard/admin/students/${id}/edit/`, function(data) {
+        body.innerHTML = data;
+        modal.show();
+    });
+}
+
+function viewStudent(id) {
+    const modal = new bootstrap.Modal(document.getElementById('viewModal'));
+    const body = document.getElementById('viewModalBody');
+    
+    $.get(`/dashboard/admin/students/${id}/`, function(data) {
+        body.innerHTML = data;
+        modal.show();
+    });
+}
+
+function viewInternships(id) {
+    const modal = new bootstrap.Modal(document.getElementById('viewModal'));
+    const body = document.getElementById('viewModalBody');
+    
+    $.get(`/dashboard/admin/students/${id}/internships/`, function(data) {
+        body.innerHTML = data;
+        modal.show();
+    });
+}
+
+function confirmDelete(type, id, name) {
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    const message = document.getElementById('deleteMessage');
+    const form = document.getElementById('deleteForm');
+    
+    message.textContent = `Are you sure you want to delete "${name}"?`;
+    form.action = `/dashboard/admin/${type}s/${id}/delete/`;
+    modal.show();
+}
+
+function openBulkUploadModal() {
+    const modal = new bootstrap.Modal(document.getElementById('bulkUploadModal'));
+    modal.show();
+}
+</script>
+
+{% block extra_js %}
+<!-- Additional page-specific JS -->
+{% endblock %}
 {% endblock %}

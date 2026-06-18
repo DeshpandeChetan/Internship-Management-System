@@ -1,0 +1,42 @@
+{% load crispy_forms_tags %}
+<form method="post" id="ajaxForm" action="{% if edit %}{% url 'admin_student_edit' form.instance.pk %}{% else %}{% url 'admin_student_add' %}{% endif %}">
+    {% csrf_token %}
+    <div class="modal-body">
+        {{ form|crispy }}
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i>{% if edit %}Update{% else %}Save{% endif %}
+        </button>
+    </div>
+</form>
+
+<script>
+$(document).ready(function() {
+    $('#ajaxForm').on('submit', function(e) {
+        e.preventDefault();
+        const form = $(this);
+        const url = form.attr('action');
+        const data = new FormData(this);
+        
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: data,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    $('#genericModalBody').html(response.html);
+                }
+            },
+            error: function() {
+                alert('An error occurred. Please try again.');
+            }
+        });
+    });
+});
+</script>

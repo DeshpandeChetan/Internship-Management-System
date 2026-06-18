@@ -1,57 +1,24 @@
 {% extends 'layout/base.html' %}
 
-{% block page_title %}Organisation Database{% endblock %}
+{% block page_title %}Manage Organisations{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3>Organisation Database</h3>
-    <div>
-        <a href="{% url 'admin_add_organisation' %}" class="btn btn-primary">Add Organisation</a>
-    </div>
-</div>
-
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="get" class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label">Search organisation</label>
-                <input type="text" name="search" class="form-control" value="{{ search|default:'' }}" placeholder="Name, city, state, area of work">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Type</label>
-                <select name="type" class="form-select">
-                    <option value="">All</option>
-                    {% for value, label in type_choices %}
-                        <option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select">
-                    <option value="">All</option>
-                    <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
-                    <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive</option>
-                </select>
-            </div>
-            <div class="col-md-2 align-self-end text-end">
-                <button type="submit" class="btn btn-primary">Filter</button>
-                <a href="{% url 'admin_companies' %}" class="btn btn-outline-secondary">Reset</a>
-            </div>
-        </form>
-    </div>
-</div>
-
 <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Organisations</h5>
+        <a href="{% url 'admin_organisation_add' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Add Organisation
+        </a>
+    </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover" id="organisationsTable">
                 <thead>
                     <tr>
                         <th>Name</th>
                         <th>Type</th>
-                        <th>City</th>
                         <th>Contact</th>
+                        <th>City</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -61,36 +28,37 @@
                     <tr>
                         <td>{{ org.name }}</td>
                         <td>{{ org.get_organisation_type_display }}</td>
-                        <td>{{ org.city }}, {{ org.state }}</td>
-                        <td>{{ org.contact_person }}<br>{{ org.phone }}</td>
-                        <td><span class="badge bg-{{ 'success' if org.status == 'active' else 'secondary' }}">{{ org.status|title }}</span></td>
+                        <td>{{ org.contact_person|default:"-" }}</td>
+                        <td>{{ org.city|default:"-" }}</td>
                         <td>
-                            <a href="{% url 'admin_view_organisation' org.id %}" class="btn btn-sm btn-info">View</a>
-                            <a href="{% url 'admin_edit_organisation' org.id %}" class="btn btn-sm btn-warning">Edit</a>
-                            <a href="{% url 'admin_toggle_organisation' org.id %}" class="btn btn-sm btn-outline-secondary">{% if org.status == 'active' %}Deactivate{% else %}Activate{% endif %}</a>
+                            {% if org.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'admin_organisation_edit' org.id %}" class="btn btn-sm btn-warning">
+                                <i class="fas fa-edit"></i>
+                            </a>
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center">No organisations found</td></tr>
+                    <tr>
+                        <td colspan="6" class="text-center">No organisations found</td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-
-        <div class="mt-3">
-            <p class="text-muted">Total organisations matching filters: {{ total_count }}</p>
-            <nav aria-label="Organisation pagination">
-                <ul class="pagination">
-                    {% if organisations.has_previous %}
-                        <li class="page-item"><a class="page-link" href="?page={{ organisations.previous_page_number }}">Previous</a></li>
-                    {% endif %}
-                    <li class="page-item disabled"><span class="page-link">Page {{ organisations.number }} of {{ organisations.paginator.num_pages }}</span></li>
-                    {% if organisations.has_next %}
-                        <li class="page-item"><a class="page-link" href="?page={{ organisations.next_page_number }}">Next</a></li>
-                    {% endif %}
-                </ul>
-            </nav>
-        </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('#organisationsTable').DataTable();
+    });
+</script>
+{% endblock %}
 {% endblock %}

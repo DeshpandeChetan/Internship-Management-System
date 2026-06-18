@@ -1,0 +1,66 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}HOD Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card stat-card">
+            <div class="card-body">
+                <h6 class="text-muted">Total Students</h6>
+                <h2 class="mb-0">{{ total_students }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card">
+            <div class="card-body">
+                <h6 class="text-muted">Completed Internships</h6>
+                <h2 class="mb-0">{{ completed_internships }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card">
+            <div class="card-body">
+                <h6 class="text-muted">Pending Approvals</h6>
+                <h2 class="mb-0">{{ pending_approvals }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <a href="{% url 'hod_students' %}" class="btn btn-primary w-100">
+                            <i class="fas fa-user-graduate"></i> Students
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{% url 'hod_consolidated_report' %}" class="btn btn-success w-100">
+                            <i class="fas fa-chart-bar"></i> Consolidated Report
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{% url 'hod_approvals' %}" class="btn btn-warning w-100">
+                            <i class="fas fa-check-circle"></i> Approvals
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{% url 'hod_reports' %}" class="btn btn-info w-100">
+                            <i class="fas fa-file-alt"></i> All Reports
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

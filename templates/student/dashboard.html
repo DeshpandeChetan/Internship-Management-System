@@ -3,6 +3,7 @@
 {% block page_title %}Student Dashboard{% endblock %}
 
 {% block content %}
+<<<<<<< HEAD
 <div class="row">
     <div class="col-md-4">
         <div class="card stat-card">
@@ -26,10 +27,30 @@
                 <h6 class="text-muted">Pending</h6>
                 <h2 class="mb-0">{{ pending_internships }}</h2>
             </div>
+=======
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="stat-card">
+            <h5>Total Internships</h5>
+            <p class="display-6 mb-0">{{ total_internships }}</p>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="stat-card">
+            <h5>Completed</h5>
+            <p class="display-6 mb-0">{{ completed_internships }}</p>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="stat-card">
+            <h5>Pending Verifications</h5>
+            <p class="display-6 mb-0">{{ pending_verifications }}</p>
+>>>>>>> b1dd710216a5bed5d5adad5c0949b51cbadcf114
         </div>
     </div>
 </div>
 
+<<<<<<< HEAD
 <div class="row mt-4">
     <div class="col-md-6">
         <div class="card">
@@ -77,3 +98,41 @@
     </div>
 </div>
 {% endblock %}
+=======
+<div class="card shadow-sm mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Recent Internships</h5>
+    </div>
+    <div class="card-body">
+        {% if recent_internships %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Organisation</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Verification</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for internship in recent_internships %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ internship.organisation.name }}</td>
+                            <td>{{ internship.get_internship_type_display }}</td>
+                            <td>{{ internship.get_completion_status_display }}</td>
+                            <td>{{ internship.get_verification_status_display }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="mb-0">No internship records found yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+>>>>>>> b1dd710216a5bed5d5adad5c0949b51cbadcf114

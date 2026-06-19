@@ -120,6 +120,7 @@
     </div>
 </div>
 
+<<<<<<< HEAD
 <!-- Organisations Table -->
 <div class="data-table-wrapper">
     <div class="table-responsive">
@@ -441,3 +442,57 @@ $(document).ready(function () {
 </script>
 {% endblock %}
 {% endblock %}
+=======
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>City</th>
+                        <th>Contact</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for org in organisations %}
+                    <tr>
+                        <td>{{ org.name }}</td>
+                        <td>{{ org.get_organisation_type_display }}</td>
+                        <td>{{ org.city }}, {{ org.state }}</td>
+                        <td>{{ org.contact_person }}<br>{{ org.phone }}</td>
+                        <td><span class="badge bg-{{ 'success' if org.status == 'active' else 'secondary' }}">{{ org.status|title }}</span></td>
+                        <td>
+                            <a href="{% url 'admin_view_organisation' org.id %}" class="btn btn-sm btn-info">View</a>
+                            <a href="{% url 'admin_edit_organisation' org.id %}" class="btn btn-sm btn-warning">Edit</a>
+                            <a href="{% url 'admin_toggle_organisation' org.id %}" class="btn btn-sm btn-outline-secondary">{% if org.status == 'active' %}Deactivate{% else %}Activate{% endif %}</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center">No organisations found</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3">
+            <p class="text-muted">Total organisations matching filters: {{ total_count }}</p>
+            <nav aria-label="Organisation pagination">
+                <ul class="pagination">
+                    {% if organisations.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ organisations.previous_page_number }}">Previous</a></li>
+                    {% endif %}
+                    <li class="page-item disabled"><span class="page-link">Page {{ organisations.number }} of {{ organisations.paginator.num_pages }}</span></li>
+                    {% if organisations.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ organisations.next_page_number }}">Next</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}
+>>>>>>> b1dd710216a5bed5d5adad5c0949b51cbadcf114

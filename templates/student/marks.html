@@ -1,0 +1,43 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}My Internship Marks{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h4 class="card-title mb-4">Assessment and Viva Marks</h4>
+        {% if marks_data %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr><th>Internship</th><th>Viva Marks</th><th>Intermediate Marks</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in marks_data %}
+                            <tr>
+                                <td>{{ item.internship.organisation.name }} ({{ item.internship.get_internship_type_display }})</td>
+                                <td>{{ item.viva_marks|default:'-' }}</td>
+                                <td>{{ item.intermediate_marks|default:'-' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p>No marks available yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h5>Consolidated assessment</h5>
+        {% if consolidated_data %}
+            <p><strong>Final score:</strong> {{ consolidated_data.final_score|default:'-' }}</p>
+            <p><strong>Average marks:</strong> {{ consolidated_data.regular_average|default:'-' }}</p>
+        {% else %}
+            <p>No consolidated scores available yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

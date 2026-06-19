@@ -1,6 +1,5 @@
 # Secrets
 .env
-client_secret*.json
 
 # Django
 db.sqlite3
@@ -12,3 +11,5 @@ __pycache__/
 # Virtual env
 venv/
 .env/
+
+client_secret.json

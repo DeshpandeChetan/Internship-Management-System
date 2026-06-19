@@ -1,0 +1,59 @@
+{% load crispy_forms_tags %}
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Register Number *</label>
+        <input type="text" name="register_number" class="form-control" required>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Name *</label>
+        <input type="text" name="name" class="form-control" required>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Email *</label>
+        <input type="email" name="email" class="form-control" required>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Mobile</label>
+        <input type="text" name="mobile" class="form-control">
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Programme *</label>
+        <select name="programme" class="form-select" required>
+            <option value="">Select Programme</option>
+            {% for programme in programmes %}
+            <option value="{{ programme.id }}">{{ programme.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Batch *</label>
+        <select name="batch" class="form-select" required>
+            <option value="">Select Batch</option>
+            {% for batch in batches %}
+            <option value="{{ batch.id }}">{{ batch.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Degree Start Date *</label>
+        <input type="date" name="degree_start_date" class="form-control" required>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Degree End Date</label>
+        <input type="date" name="degree_end_date" class="form-control">
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="on_break">On Break</option>
+            <option value="discontinued">Discontinued</option>
+        </select>
+    </div>
+    <div class="col-md-12 mb-3">
+        <label class="form-label">Remarks</label>
+        <textarea name="remarks" class="form-control" rows="2"></textarea>
+    </div>
+</div>

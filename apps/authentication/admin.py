@@ -7,12 +7,13 @@ class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     verbose_name_plural = 'Profile'
-    fields = ['role', 'phone_number', 'is_active']
+    fields = ['role', 'phone_number', 'is_active', 'is_approved']
+    readonly_fields = ['is_approved']
 
 class CustomUserAdmin(UserAdmin):
     inlines = [UserProfileInline]
     list_display = ['username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active']
-    list_filter = ['is_staff', 'is_superuser', 'is_active', 'profile__role']
+    list_filter = ['is_staff', 'is_superuser', 'is_active', 'profile__role', 'profile__is_approved']
     search_fields = ['username', 'email', 'first_name', 'last_name']
     
     def get_inline_instances(self, request, obj=None):
@@ -26,9 +27,9 @@ admin.site.register(User, CustomUserAdmin)
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'role', 'phone_number', 'is_active']
-    list_filter = ['role', 'is_active']
+    list_display = ['user', 'role', 'phone_number', 'is_active', 'is_approved']
+    list_filter = ['role', 'is_active', 'is_approved']
     search_fields = ['user__email', 'user__first_name', 'user__last_name']
-    list_editable = ['role', 'is_active']  # Allow inline editing of role
-    fields = ['user', 'role', 'phone_number', 'is_active']
+    list_editable = ['role', 'is_active', 'is_approved']
+    fields = ['user', 'role', 'phone_number', 'is_active', 'is_approved']
     readonly_fields = ['user']

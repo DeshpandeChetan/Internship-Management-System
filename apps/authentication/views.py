@@ -11,9 +11,9 @@ def login_view(request):
         return redirect('dashboard')
     return render(request, 'authentication/login.html')
 
-@login_required
-def profile_view(request):
-    return render(request, 'authentication/profile.html', {'user': request.user})
+# @login_required
+# def profile_view(request):
+#     return render(request, 'authentication/profile.html', {'user': request.user})
 
 @login_required
 def dashboard_view(request):

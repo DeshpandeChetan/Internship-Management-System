@@ -15,7 +15,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-    # Third-party apps
     'django.contrib.sites',
     'allauth',
     'allauth.account',
@@ -24,7 +23,6 @@ INSTALLED_APPS = [
     'crispy_forms',
     'crispy_bootstrap5',
     
-    # Local apps - ONLY these two
     'apps.authentication',
     'apps.core',
 ]
@@ -35,8 +33,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'allauth.account.middleware.AccountMiddleware',  # ← Required
-    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',  # ← MUST be after AuthenticationMiddleware
+    'allauth.account.middleware.AccountMiddleware',
+    'apps.authentication.middleware.UserApprovalMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 

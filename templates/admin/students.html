@@ -1,89 +1,31 @@
 {% extends 'layout/base.html' %}
 {% load static %}
 
-{% block page_title %}Manage Students{% endblock %}
+{% block title %}Manage Students{% endblock %}
+{% block page_title %}Student Management{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Desktop styles */
     @media (min-width: 769px) {
-        .data-table-wrapper .table-responsive {
-            overflow-x: visible !important;
-            overflow-y: visible !important;
-        }
-
-        #studentsTable {
-            width: 100% !important;
-        }
-
-        #studentsTable th,
-        #studentsTable td {
-            white-space: nowrap;
-        }
-        
-        #studentsTable td:last-child {
-            overflow: visible !important;
-        }
-
-        .dataTables_wrapper {
-            width: 100% !important;
-            overflow: visible !important;
-        }
-        
-        .data-table-wrapper {
-            overflow: visible !important;
-        }
+        .data-table-wrapper .table-responsive { overflow-x: visible !important; overflow-y: visible !important; }
+        #studentsTable { width: 100% !important; }
+        #studentsTable th, #studentsTable td { white-space: nowrap; }
+        #studentsTable td:last-child { overflow: visible !important; }
+        .dataTables_wrapper { width: 100% !important; overflow: visible !important; }
+        .data-table-wrapper { overflow: visible !important; }
     }
-
-    /* Mobile: allow horizontal scroll */
     @media (max-width: 768px) {
-        .dataTables_wrapper {
-            overflow-x: auto !important;
-        }
-        .table-responsive {
-            overflow-x: auto !important;
-        }
+        .dataTables_wrapper { overflow-x: auto !important; }
+        .table-responsive { overflow-x: auto !important; }
     }
-
-    /* DataTable styling */
-    div.dataTables_wrapper div.dataTables_length select {
-        min-width: 70px;
-    }
-
-    /* Dropdown styling */
-    .dropdown-menu {
-        z-index: 9999 !important;
-        position: absolute;
-    }
+    div.dataTables_wrapper div.dataTables_length select { min-width: 70px; }
+    .dropdown-menu { z-index: 9999 !important; position: absolute; }
+    .dropdown-item { cursor: pointer; padding: 8px 16px; font-size: 0.85rem; }
+    .dropdown-item i { width: 18px; text-align: center; }
+    .dropdown-item:hover { background-color: #f8f9fa; }
+    body.modal-open { overflow-y: auto !important; padding-right: 0 !important; }
+    .data-table-wrapper, .dataTables_wrapper, .table-responsive { overflow: visible !important; }
     
-    .dropdown-item {
-        cursor: pointer;
-        padding: 8px 16px;
-        font-size: 0.85rem;
-    }
-    
-    .dropdown-item i {
-        width: 18px;
-        text-align: center;
-    }
-    
-    .dropdown-item:hover {
-        background-color: #f8f9fa;
-    }
-
-    /* Prevent vertical scrollbar shift when modal opens */
-    body.modal-open {
-        overflow-y: auto !important;
-        padding-right: 0 !important;
-    }
-    
-    .data-table-wrapper,
-    .dataTables_wrapper,
-    .table-responsive {
-        overflow: visible !important;
-    }
-
-    /* Search box styling */
     .dataTables_wrapper .dataTables_filter {
         display: flex;
         justify-content: flex-end;
@@ -91,7 +33,6 @@
         width: 100%;
         margin-bottom: 12px;
     }
-
     .dataTables_wrapper .dataTables_filter label {
         width: 100%;
         display: flex;
@@ -101,7 +42,6 @@
         flex-wrap: wrap;
         margin: 0;
     }
-
     .dataTables_wrapper .dataTables_filter input {
         width: 260px !important;
         max-width: 100%;
@@ -110,22 +50,18 @@
         padding: 6px 12px;
         margin-left: 0 !important;
     }
-
     .dataTables_wrapper .dataTables_length select {
         min-width: 75px;
         padding: 5px 32px 5px 10px !important;
         border-radius: 6px;
         border: 1px solid #ced4da;
     }
-
-    /* Mobile responsive */
     @media (max-width: 768px) {
         .dataTables_wrapper .row {
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-
         .dataTables_wrapper .dataTables_filter,
         .dataTables_wrapper .dataTables_length,
         .dataTables_wrapper .dataTables_info,
@@ -134,23 +70,14 @@
             text-align: left !important;
             justify-content: flex-start !important;
         }
-
-        .dataTables_wrapper .dataTables_filter label {
-            justify-content: flex-start;
-        }
-
-        .dataTables_wrapper .dataTables_filter input {
-            width: 100% !important;
-        }
+        .dataTables_wrapper .dataTables_filter label { justify-content: flex-start; }
+        .dataTables_wrapper .dataTables_filter input { width: 100% !important; }
     }
-
-    /* Status badge colors */
-    .badge-status {
-        padding: 5px 12px;
-        border-radius: 20px;
-        font-weight: 500;
-        font-size: 0.75rem;
-    }
+    .badge-status { padding: 5px 12px; border-radius: 20px; font-weight: 500; font-size: 0.75rem; }
+    .modal-header.bg-danger { background: linear-gradient(135deg, #dc2626, #b91c1c) !important; }
+    .modal-header.bg-warning { background: linear-gradient(135deg, #f59e0b, #d97706) !important; }
+    .modal-header.bg-success { background: linear-gradient(135deg, #10b981, #059669) !important; }
+    .modal-header.bg-primary { background: linear-gradient(135deg, #1e3a8a, #1e40af) !important; }
 </style>
 {% endblock %}
 
@@ -161,10 +88,10 @@
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div class="d-flex gap-2 flex-wrap">
-                <button type="button" class="btn btn-primary" onclick="openAddModal('student')">
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal" data-bs-backdrop="static" data-bs-keyboard="false">
                     <i class="fas fa-plus me-2"></i>Add Student
                 </button>
-                <button type="button" class="btn btn-outline-primary" onclick="openBulkUploadModal()">
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bulkUploadModal" data-bs-backdrop="static" data-bs-keyboard="false">
                     <i class="fas fa-upload me-2"></i>Bulk Upload
                 </button>
                 <a href="#" class="btn btn-outline-success">
@@ -261,7 +188,7 @@
                                     </button>
                                 </li>
                                 <li>
-                                    <button class="dropdown-item" onclick="editStudent('{{ student.id }}')">
+                                    <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editStudentModal{{ student.id }}">
                                         <i class="fas fa-edit text-primary me-2"></i> Edit
                                     </button>
                                 </li>
@@ -272,7 +199,7 @@
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <button class="dropdown-item text-danger" onclick="confirmDelete('student', '{{ student.id }}', '{{ student.name }}')">
+                                    <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteStudentModal{{ student.id }}">
                                         <i class="fas fa-trash-alt text-danger me-2"></i> Delete
                                     </button>
                                 </li>
@@ -293,17 +220,208 @@
     </div>
 </div>
 
-<!-- Bulk Upload Modal (inline for this page) -->
+{% for student in students %}
+<!-- Edit Student Modal - LIKE users.html -->
+<div class="modal fade" id="editStudentModal{{ student.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Student</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'admin_student_edit' student.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Register Number *</label>
+                            <input type="text" name="register_number" value="{{ student.register_number }}" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Name *</label>
+                            <input type="text" name="name" value="{{ student.name }}" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="email" value="{{ student.email }}" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Mobile</label>
+                            <input type="text" name="mobile" value="{{ student.mobile }}" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Programme *</label>
+                            <select name="programme" class="form-select" required>
+                                {% for programme in programmes %}
+                                <option value="{{ programme.id }}" {% if student.programme.id == programme.id %}selected{% endif %}>
+                                    {{ programme.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Batch *</label>
+                            <select name="batch" class="form-select" required>
+                                {% for batch in batches %}
+                                <option value="{{ batch.id }}" {% if student.batch.id == batch.id %}selected{% endif %}>
+                                    {{ batch.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Degree Start Date *</label>
+                            <input type="date" name="degree_start_date" value="{{ student.degree_start_date|date:'Y-m-d' }}" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Degree End Date</label>
+                            <input type="date" name="degree_end_date" value="{{ student.degree_end_date|date:'Y-m-d' }}" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                {% for status_code, status_label in status_choices %}
+                                <option value="{{ status_code }}" {% if student.status == status_code %}selected{% endif %}>
+                                    {{ status_label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Remarks</label>
+                            <textarea name="remarks" class="form-control" rows="2">{{ student.remarks }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Student</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Student Modal -->
+<div class="modal fade" id="deleteStudentModal{{ student.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-trash-alt me-2"></i>Delete Student</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3 d-block"></i>
+                <p class="mb-1 fw-semibold">Are you sure you want to delete <strong>{{ student.name }}</strong>?</p>
+                <h6 class="text-muted small mb-0">This action cannot be undone.</h6>
+            </div>
+            <div class="modal-footer justify-content-center gap-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'admin_student_delete' student.id %}" class="btn btn-danger px-4">
+                    <i class="fas fa-trash me-2"></i>Delete
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- View Student Modal (populated via JS in viewStudent()) -->
+<div class="modal fade" id="viewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" id="viewModalBody">
+            <!-- Filled dynamically by viewStudent() -->
+        </div>
+    </div>
+</div>
+
+<!-- Add Student Modal - LIKE users.html (form directly in modal) -->
+<div class="modal fade" id="addStudentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add New Student</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'admin_student_add' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Register Number *</label>
+                            <input type="text" name="register_number" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Name *</label>
+                            <input type="text" name="name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="email" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Mobile</label>
+                            <input type="text" name="mobile" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Programme *</label>
+                            <select name="programme" class="form-select" required>
+                                <option value="">Select Programme</option>
+                                {% for programme in programmes %}
+                                <option value="{{ programme.id }}">{{ programme.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Batch *</label>
+                            <select name="batch" class="form-select" required>
+                                <option value="">Select Batch</option>
+                                {% for batch in batches %}
+                                <option value="{{ batch.id }}">{{ batch.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Degree Start Date *</label>
+                            <input type="date" name="degree_start_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Degree End Date</label>
+                            <input type="date" name="degree_end_date" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="active">Active</option>
+                                <option value="completed">Completed</option>
+                                <option value="on_break">On Break</option>
+                                <option value="discontinued">Discontinued</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Remarks</label>
+                            <textarea name="remarks" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Student</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Upload Modal -->
 <div class="modal fade" id="bulkUploadModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #1e3a8a, #1e40af); color: white; border-radius: 15px 15px 0 0;">
-                <h5 class="modal-title">
-                    <i class="fas fa-upload me-2"></i>Bulk Upload Students
-                </h5>
+            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Bulk Upload Students</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post" action="{% url 'bulk_student_upload' %}" enctype="multipart/form-data">
+            <form method="post" action="#" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="mb-3">
@@ -326,7 +444,72 @@
 </div>
 
 <script>
-// Initialize DataTable
+function viewStudent(id) {
+    $.get(`/dashboard/admin/students/${id}/`, function(data) {
+        let internshipsHtml = '';
+        if (data.internships && data.internships.length > 0) {
+            data.internships.forEach(function(item) {
+                internshipsHtml += `<tr>
+                    <td>${item.number}</td>
+                    <td>${item.organisation}</td>
+                    <td>${item.type}</td>
+                    <td>${item.start_date} - ${item.end_date}</td>
+                    <td>${item.status}</td>
+                </tr>`;
+            });
+        } else {
+            internshipsHtml = `<tr><td colspan="5" class="text-center">No internships found</td></tr>`;
+        }
+        
+        const html = `
+            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-eye me-2"></i>Student Details - ${data.name}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Register Number:</strong> ${data.register_number}</p>
+                        <p><strong>Name:</strong> ${data.name}</p>
+                        <p><strong>Email:</strong> ${data.email}</p>
+                        <p><strong>Mobile:</strong> ${data.mobile}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Programme:</strong> ${data.programme}</p>
+                        <p><strong>Batch:</strong> ${data.batch}</p>
+                        <p><strong>Degree Start:</strong> ${data.degree_start_date}</p>
+                        <p><strong>Degree End:</strong> ${data.degree_end_date}</p>
+                        <p><strong>Status:</strong> ${data.status}</p>
+                    </div>
+                </div>
+                <h6 class="mt-3">Internships</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>#</th><th>Organisation</th><th>Type</th><th>Period</th><th>Status</th></tr></thead>
+                        <tbody>${internshipsHtml}</tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        `;
+        
+        document.getElementById('viewModalBody').innerHTML = html;
+        const modal = new bootstrap.Modal(document.getElementById('viewModal'));
+        modal.show();
+    });
+}
+
+function viewInternships(id) {
+    $.get(`/dashboard/admin/students/${id}/internships/`, function(data) {
+        alert('Internships view coming soon');
+    });
+}
+</script>
+
+{% block extra_js %}
+<script>
 $(document).ready(function () {
     $('#studentsTable').DataTable({
         responsive: false,
@@ -364,85 +547,6 @@ $(document).ready(function () {
              "<'row align-items-center g-2 mt-3'<'col-12 col-md-5'i><'col-12 col-md-7'p>>"
     });
 });
-
-// ============================================
-// GLOBAL FUNCTIONS (using reusable modals)
-// ============================================
-
-function openAddModal(type) {
-    const modal = new bootstrap.Modal(document.getElementById('genericModal'));
-    const header = document.getElementById('genericModalHeader');
-    const title = document.getElementById('genericModalTitle');
-    const body = document.getElementById('genericModalBody');
-    
-    if (type === 'student') {
-        header.className = 'modal-header';
-        header.style.background = 'linear-gradient(135deg, #1e3a8a, #1e40af)';
-        header.style.color = 'white';
-        title.innerHTML = '<i class="fas fa-user-plus me-2"></i>Add New Student';
-        
-        // Load form via AJAX
-        $.get('/dashboard/admin/students/add/', function(data) {
-            body.innerHTML = data;
-            modal.show();
-        });
-    }
-}
-
-function editStudent(id) {
-    const modal = new bootstrap.Modal(document.getElementById('genericModal'));
-    const header = document.getElementById('genericModalHeader');
-    const title = document.getElementById('genericModalTitle');
-    const body = document.getElementById('genericModalBody');
-    
-    header.className = 'modal-header';
-    header.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
-    header.style.color = 'white';
-    title.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Student';
-    
-    $.get(`/dashboard/admin/students/${id}/edit/`, function(data) {
-        body.innerHTML = data;
-        modal.show();
-    });
-}
-
-function viewStudent(id) {
-    const modal = new bootstrap.Modal(document.getElementById('viewModal'));
-    const body = document.getElementById('viewModalBody');
-    
-    $.get(`/dashboard/admin/students/${id}/`, function(data) {
-        body.innerHTML = data;
-        modal.show();
-    });
-}
-
-function viewInternships(id) {
-    const modal = new bootstrap.Modal(document.getElementById('viewModal'));
-    const body = document.getElementById('viewModalBody');
-    
-    $.get(`/dashboard/admin/students/${id}/internships/`, function(data) {
-        body.innerHTML = data;
-        modal.show();
-    });
-}
-
-function confirmDelete(type, id, name) {
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    const message = document.getElementById('deleteMessage');
-    const form = document.getElementById('deleteForm');
-    
-    message.textContent = `Are you sure you want to delete "${name}"?`;
-    form.action = `/dashboard/admin/${type}s/${id}/delete/`;
-    modal.show();
-}
-
-function openBulkUploadModal() {
-    const modal = new bootstrap.Modal(document.getElementById('bulkUploadModal'));
-    modal.show();
-}
 </script>
-
-{% block extra_js %}
-<!-- Additional page-specific JS -->
 {% endblock %}
 {% endblock %}

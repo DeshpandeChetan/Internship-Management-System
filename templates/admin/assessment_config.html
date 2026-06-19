@@ -1,0 +1,313 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block title %}Assessment Configuration{% endblock %}
+{% block page_title %}Assessment Configuration{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media (min-width: 769px) {
+        .data-table-wrapper .table-responsive { overflow-x: visible !important; overflow-y: visible !important; }
+        #componentsTable { width: 100% !important; }
+        #componentsTable th, #componentsTable td { white-space: nowrap; }
+        #componentsTable td:last-child { overflow: visible !important; }
+        .dataTables_wrapper { width: 100% !important; overflow: visible !important; }
+        .data-table-wrapper { overflow: visible !important; }
+    }
+    @media (max-width: 768px) {
+        .dataTables_wrapper { overflow-x: auto !important; }
+        .table-responsive { overflow-x: auto !important; }
+    }
+    div.dataTables_wrapper div.dataTables_length select { min-width: 70px; }
+    .dropdown-menu { z-index: 9999 !important; position: absolute; }
+    .dropdown-item { cursor: pointer; padding: 8px 16px; font-size: 0.85rem; }
+    .dropdown-item i { width: 18px; text-align: center; }
+    .dropdown-item:hover { background-color: #f8f9fa; }
+    body.modal-open { overflow-y: auto !important; padding-right: 0 !important; }
+    .data-table-wrapper, .dataTables_wrapper, .table-responsive { overflow: visible !important; }
+    
+    .dataTables_wrapper .dataTables_filter {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 12px;
+    }
+    .dataTables_wrapper .dataTables_filter label {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 0;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        width: 260px !important;
+        max-width: 100%;
+        border-radius: 8px;
+        border: 1px solid #ced4da;
+        padding: 6px 12px;
+        margin-left: 0 !important;
+    }
+    .dataTables_wrapper .dataTables_length select {
+        min-width: 75px;
+        padding: 5px 32px 5px 10px !important;
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+    }
+    @media (max-width: 768px) {
+        .dataTables_wrapper .row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            width: 100%;
+            text-align: left !important;
+            justify-content: flex-start !important;
+        }
+        .dataTables_wrapper .dataTables_filter label { justify-content: flex-start; }
+        .dataTables_wrapper .dataTables_filter input { width: 100% !important; }
+    }
+    .badge-status { padding: 5px 12px; border-radius: 20px; font-weight: 500; font-size: 0.75rem; }
+    .modal-header.bg-danger { background: linear-gradient(135deg, #dc2626, #b91c1c) !important; }
+    .modal-header.bg-warning { background: linear-gradient(135deg, #f59e0b, #d97706) !important; }
+    .modal-header.bg-success { background: linear-gradient(135deg, #10b981, #059669) !important; }
+    .modal-header.bg-primary { background: linear-gradient(135deg, #1e3a8a, #1e40af) !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Top Action Bar -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addComponentModal" data-bs-backdrop="static" data-bs-keyboard="false">
+                    <i class="fas fa-plus me-2"></i>Add Component
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Components Table -->
+<div class="data-table-wrapper">
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle" id="componentsTable">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Assessment Type</th>
+                    <th>Default Max Marks</th>
+                    <th>Weightage</th>
+                    <th>Mandatory</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for component in components %}
+                <tr>
+                    <td><strong>{{ component.name }}</strong></td>
+                    <td>
+                        <span class="badge bg-info">{{ component.get_assessment_type_display }}</span>
+                    </td>
+                    <td>{{ component.default_max_marks }}</td>
+                    <td>{{ component.weightage|default:"0" }}%</td>
+                    <td>
+                        {% if component.is_mandatory %}
+                        <span class="badge bg-success">Yes</span>
+                        {% else %}
+                        <span class="badge bg-secondary">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge-status bg-{% if component.is_active %}success{% else %}danger{% endif %} text-white">
+                            {% if component.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-ellipsis-v"></i> Actions
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <button class="dropdown-item" onclick="editComponent('{{ component.id }}')">
+                                        <i class="fas fa-edit text-primary me-2"></i> Edit
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteComponentModal{{ component.id }}">
+                                        <i class="fas fa-trash-alt text-danger me-2"></i> Delete
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Delete Component Modal -->
+                <div class="modal fade" id="deleteComponentModal{{ component.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
+                        <div class="modal-content">
+                            <div class="modal-header bg-danger text-white" style="border-radius: 15px 15px 0 0;">
+                                <h5 class="modal-title"><i class="fas fa-trash-alt me-2"></i>Delete Component</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body text-center py-4">
+                                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3 d-block"></i>
+                                <p class="mb-1 fw-semibold">Are you sure you want to delete <strong>{{ component.name }}</strong>?</p>
+                                <h6 class="text-muted small mb-0">This action cannot be undone.</h6>
+                            </div>
+                            <div class="modal-footer justify-content-center gap-2">
+                                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                <a href="{% url 'admin_assessment_component_delete' component.id %}" class="btn btn-danger px-4">
+                                    <i class="fas fa-trash me-2"></i>Delete
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <i class="fas fa-sliders-h fa-2x text-muted d-block mb-2"></i>
+                        No assessment components found
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Component Modal -->
+<div class="modal fade" id="addComponentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Add Assessment Component</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'admin_assessment_config' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Component Name *</label>
+                            <input type="text" name="name" class="form-control" required>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Assessment Type *</label>
+                            <select name="assessment_type" class="form-select" required>
+                                <option value="">Select Type</option>
+                                <option value="intermediate">Intermediate Assessment</option>
+                                <option value="report">Report Evaluation</option>
+                                <option value="presentation">Presentation/Review</option>
+                                <option value="mentor">Mentor Evaluation</option>
+                                <option value="viva">Final Viva</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Default Max Marks *</label>
+                            <input type="number" name="default_max_marks" class="form-control" required step="0.5" min="1">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Weightage (%)</label>
+                            <input type="number" name="weightage" class="form-control" step="0.5" min="0" max="100">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_mandatory" class="form-check-input" id="isMandatory" checked>
+                                <label class="form-check-label" for="isMandatory">Mandatory</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_active" class="form-check-input" id="isActive" checked>
+                                <label class="form-check-label" for="isActive">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Component</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editComponent(id) {
+    // Load edit form via AJAX
+    $.get(`/dashboard/admin/assessment-config/${id}/edit/`, function(data) {
+        const modal = new bootstrap.Modal(document.getElementById('genericModal'));
+        const header = document.getElementById('genericModalHeader');
+        const title = document.getElementById('genericModalTitle');
+        const body = document.getElementById('genericModalBody');
+        
+        header.className = 'modal-header';
+        header.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+        header.style.color = 'white';
+        title.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Component';
+        
+        body.innerHTML = data;
+        modal.show();
+    });
+}
+</script>
+
+{% block extra_js %}
+<script>
+$(document).ready(function () {
+    $('#componentsTable').DataTable({
+        responsive: false,
+        autoWidth: true,
+        scrollX: false,
+        scrollCollapse: false,
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+        order: [[0, 'asc']],
+        columnDefs: [
+            {
+                targets: -1,
+                orderable: false,
+                searchable: false
+            }
+        ],
+        language: {
+            search: "",
+            searchPlaceholder: "Search components...",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ components",
+            infoEmpty: "No components found",
+            infoFiltered: "(filtered from _MAX_ total)",
+            emptyTable: "No components available",
+            zeroRecords: "No matching components found",
+            paginate: {
+                first: '<i class="fas fa-angle-double-left"></i>',
+                last: '<i class="fas fa-angle-double-right"></i>',
+                next: '<i class="fas fa-angle-right"></i>',
+                previous: '<i class="fas fa-angle-left"></i>'
+            }
+        },
+        dom: "<'row align-items-center g-2 mb-3'<'col-12 col-md-6'l><'col-12 col-md-6'f>>" +
+             "<'row'<'col-12'tr>>" +
+             "<'row align-items-center g-2 mt-3'<'col-12 col-md-5'i><'col-12 col-md-7'p>>"
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

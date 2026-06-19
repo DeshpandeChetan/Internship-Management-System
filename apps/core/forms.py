@@ -1,12 +1,15 @@
+# apps/core/forms.py
+
 from django import forms
 from django.contrib.auth.models import User
+from django.db import transaction
 from .models import (
     Programme, Batch, Student, Organisation, 
     InternshipRecord, BreakRecord,
-    # Add these
     MentorAssignment, AssessmentMarks, AssessmentComponent
 )
 from ..authentication.models import UserProfile
+
 
 # ============================================
 # USER MANAGEMENT FORMS
@@ -38,7 +41,6 @@ class UserForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # If editing existing user, populate fields
         if self.instance and self.instance.pk:
             if hasattr(self.instance, 'profile'):
                 self.fields['role'].initial = self.instance.profile.role
@@ -55,13 +57,10 @@ class UserForm(forms.ModelForm):
         user = super().save(commit=False)
         user.username = self.cleaned_data['email']
         user.email = self.cleaned_data['email']
-        
-        # Set a temporary password (user will login via Google)
         user.set_password('temp123')
         
         if commit:
             user.save()
-            # Create or update profile
             profile, created = UserProfile.objects.get_or_create(
                 user=user,
                 defaults={
@@ -79,11 +78,16 @@ class UserForm(forms.ModelForm):
 
 
 # ============================================
-# STUDENT MANAGEMENT FORMS
+# STUDENT MANAGEMENT FORMS - COMPLETELY FIXED
 # ============================================
 
+# apps/core/forms.py (StudentForm only)
+
+# apps/core/forms.py (StudentForm only - FIXED)
+
 class StudentForm(forms.ModelForm):
-    """Form for creating/editing students"""
+    """Form for creating/editing students - No password needed for Google Login"""
+    
     class Meta:
         model = Student
         fields = [
@@ -120,6 +124,47 @@ class StudentForm(forms.ModelForm):
         if Student.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
             raise forms.ValidationError("A student with this email already exists.")
         return email
+    
+    def save(self, commit=True):
+        """Simple save - creates User without password (Google Login)"""
+        student = super().save(commit=False)
+        
+        # Create user for Google Login (no password needed)
+        if not student.user:
+            user, created = User.objects.get_or_create(
+                email=student.email,
+                defaults={
+                    'username': student.email,
+                    'first_name': student.name.split()[0] if ' ' in student.name else student.name,
+                    'last_name': ' '.join(student.name.split()[1:]) if ' ' in student.name else '',
+                }
+            )
+            # No password set - Google Login will handle authentication
+            if created:
+                user.save()
+            student.user = user
+        
+        # Create UserProfile for role-based access
+        if student.user:
+            profile, created = UserProfile.objects.get_or_create(
+                user=student.user,
+                defaults={
+                    'role': 'student',
+                    'phone_number': student.mobile or '',
+                    'is_active': True,
+                    'is_approved': True
+                }
+            )
+            if not created:
+                profile.role = 'student'
+                profile.phone_number = student.mobile or ''
+                profile.is_approved = True
+                profile.save()
+        
+        if commit:
+            student.save()
+        
+        return student
 
 
 # ============================================
@@ -263,7 +308,6 @@ class MentorAssignmentForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Only show faculty mentors
         self.fields['faculty_mentor'].queryset = UserProfile.objects.filter(
             role__in=['faculty_mentor', 'hod']
         )
@@ -382,6 +426,7 @@ class ProgrammeForm(forms.ModelForm):
             'duration_years': forms.NumberInput(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
 
 class BatchForm(forms.ModelForm):
     """Form for creating/editing batches"""

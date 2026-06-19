@@ -10,11 +10,17 @@ def create_user_profile_from_social_login(sender, instance, created, **kwargs):
         user = instance.user
         if not hasattr(user, 'profile'):
             # Check if user is superuser
-            role = 'admin' if user.is_superuser else 'student'
+            if user.is_superuser:
+                role = 'admin'
+                is_approved = True
+            else:
+                role = 'student'
+                is_approved = False  # Students need admin approval
             UserProfile.objects.create(
                 user=user,
                 role=role,
-                is_active=True
+                is_active=True,
+                is_approved=is_approved
             )
 
 @receiver(post_save, sender=User)
@@ -25,5 +31,6 @@ def create_user_profile_for_superuser(sender, instance, created, **kwargs):
             UserProfile.objects.create(
                 user=instance,
                 role='admin',
-                is_active=True
+                is_active=True,
+                is_approved=True
             )

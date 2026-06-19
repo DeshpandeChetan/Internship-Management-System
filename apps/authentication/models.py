@@ -16,7 +16,8 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
     phone_number = models.CharField(max_length=20, blank=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)  # User is active
+    is_approved = models.BooleanField(default=False)  # Admin approval required for students
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
     
@@ -26,23 +27,8 @@ class UserProfile(models.Model):
     def get_full_name(self):
         return self.user.get_full_name() or self.user.email
     
-    def is_admin(self):
-        return self.role == 'admin'
-    
-    def is_dept_admin(self):
-        return self.role == 'dept_admin'
-    
-    def is_mentor(self):
-        return self.role == 'faculty_mentor'
-    
-    def is_evaluator(self):
-        return self.role == 'evaluator'
-    
-    def is_hod(self):
-        return self.role == 'hod'
-    
-    def is_student(self):
-        return self.role == 'student'
-    
-    class Meta:
-        ordering = ['-created_on']
+    def can_login(self):
+        """Check if user can login (active and approved)"""
+        if self.role in ['admin', 'dept_admin', 'faculty_mentor', 'evaluator', 'hod']:
+            return self.is_active
+        return self.is_active and self.is_approved

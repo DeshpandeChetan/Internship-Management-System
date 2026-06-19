@@ -1,67 +1,509 @@
 {% extends 'layout/base.html' %}
+{% load static %}
 
-{% block page_title %}Manage Users{% endblock %}
+{% block title %}Manage Users{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media (min-width: 769px) {
+        .data-table-wrapper .table-responsive { overflow-x: visible !important; overflow-y: visible !important; }
+        #usersTable { width: 100% !important; }
+        #usersTable th, #usersTable td { white-space: nowrap; }
+        #usersTable td:last-child { overflow: visible !important; }
+        .dataTables_wrapper { width: 100% !important; overflow: visible !important; }
+        .data-table-wrapper { overflow: visible !important; }
+    }
+    @media (max-width: 768px) {
+        .dataTables_wrapper { overflow-x: auto !important; }
+        .table-responsive { overflow-x: auto !important; }
+    }
+    div.dataTables_wrapper div.dataTables_length select { min-width: 70px; }
+    .dropdown-menu { z-index: 9999 !important; position: absolute; }
+    .dropdown-item { cursor: pointer; padding: 8px 16px; font-size: 0.85rem; }
+    .dropdown-item i { width: 18px; text-align: center; }
+    .dropdown-item:hover { background-color: #f8f9fa; }
+    body.modal-open { overflow-y: auto !important; padding-right: 0 !important; }
+    .data-table-wrapper, .dataTables_wrapper, .table-responsive { overflow: visible !important; }
+    
+    .dataTables_wrapper .dataTables_filter {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 12px;
+    }
+    .dataTables_wrapper .dataTables_filter label {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 0;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        width: 260px !important;
+        max-width: 100%;
+        border-radius: 8px;
+        border: 1px solid #ced4da;
+        padding: 6px 12px;
+        margin-left: 0 !important;
+    }
+    .dataTables_wrapper .dataTables_length select {
+        min-width: 75px;
+        padding: 5px 32px 5px 10px !important;
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+    }
+    @media (max-width: 768px) {
+        .dataTables_wrapper .row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            width: 100%;
+            text-align: left !important;
+            justify-content: flex-start !important;
+        }
+        .dataTables_wrapper .dataTables_filter label { justify-content: flex-start; }
+        .dataTables_wrapper .dataTables_filter input { width: 100% !important; }
+    }
+    .badge-status { padding: 5px 12px; border-radius: 20px; font-weight: 500; font-size: 0.75rem; }
+    .modal-header.bg-danger { background: linear-gradient(135deg, #dc2626, #b91c1c) !important; }
+    .modal-header.bg-warning { background: linear-gradient(135deg, #f59e0b, #d97706) !important; }
+    .modal-header.bg-success { background: linear-gradient(135deg, #10b981, #059669) !important; }
+    .modal-header.bg-primary { background: linear-gradient(135deg, #1e3a8a, #1e40af) !important; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Users</h5>
-        <a href="{% url 'admin_user_add' %}" class="btn btn-primary btn-sm">
-            <i class="fas fa-plus"></i> Add User
-        </a>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover" id="usersTable">
-                <thead>
-                    <tr>
-                        <th>Email</th>
-                        <th>Name</th>
-                        <th>Role</th>
-                        <th>Phone</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for profile in users %}
-                    <tr>
-                        <td>{{ profile.user.email }}</td>
-                        <td>{{ profile.user.get_full_name|default:"-" }}</td>
-                        <td><span class="badge bg-primary">{{ profile.get_role_display }}</span></td>
-                        <td>{{ profile.phone_number|default:"-" }}</td>
-                        <td>
-                            {% if profile.is_active %}
-                            <span class="badge bg-success">Active</span>
-                            {% else %}
-                            <span class="badge bg-danger">Inactive</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{% url 'admin_user_edit' profile.id %}" class="btn btn-sm btn-warning">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="{% url 'admin_user_delete' profile.id %}" class="btn btn-sm btn-danger">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center">No users found</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+<!-- Top Action Bar -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal" data-bs-backdrop="static" data-bs-keyboard="false">
+                    <i class="fas fa-plus me-2"></i>Add User
+                </button>
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bulkUploadModal" data-bs-backdrop="static" data-bs-keyboard="false">
+                    <i class="fas fa-upload me-2"></i>Bulk Upload
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
+<!-- Filters -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-3" id="filterForm">
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Role</label>
+                <select name="role" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All Roles</option>
+                    {% for role_code, role_label in roles %}
+                    <option value="{{ role_code }}" {% if request.GET.role == role_code %}selected{% endif %}>
+                        {{ role_label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Approval Status</label>
+                <select name="approved" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All</option>
+                    <option value="approved" {% if request.GET.approved == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="pending" {% if request.GET.approved == 'pending' %}selected{% endif %}>Pending</option>
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3 d-flex align-items-end">
+                <a href="{% url 'admin_users' %}" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="fas fa-undo me-1"></i>Reset Filters
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="data-table-wrapper">
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle" id="usersTable">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Approval</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for profile in users %}
+                <tr>
+                    <td>{{ profile.user.email }}</td>
+                    <td>{{ profile.user.get_full_name|default:"-" }}</td>
+                    <td>
+                        <span class="badge bg-{% if profile.role == 'admin' %}danger{% elif profile.role == 'dept_admin' %}warning{% elif profile.role == 'faculty_mentor' %}info{% elif profile.role == 'evaluator' %}primary{% elif profile.role == 'hod' %}secondary{% else %}success{% endif %}">
+                            {{ profile.get_role_display }}
+                        </span>
+                    </td>
+                    <td>{{ profile.phone_number|default:"-" }}</td>
+                    <td>
+                        <span class="badge-status bg-{% if profile.is_active %}success{% else %}danger{% endif %} text-white">
+                            {% if profile.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if profile.role == 'student' %}
+                            {% if profile.is_approved %}
+                                <span class="badge bg-success">Approved</span>
+                            {% else %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-ellipsis-v"></i> Actions
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editUserModal{{ profile.id }}">
+                                        <i class="fas fa-edit text-primary me-2"></i> Edit
+                                    </button>
+                                </li>
+                                {% if profile.role == 'student' and not profile.is_approved %}
+                                <li>
+                                    <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#approveUserModal{{ profile.id }}">
+                                        <i class="fas fa-check text-success me-2"></i> Approve
+                                    </button>
+                                </li>
+                                {% endif %}
+                                <li>
+                                    <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#toggleUserModal{{ profile.id }}">
+                                        {% if profile.is_active %}
+                                            <i class="fas fa-power-off text-warning me-2"></i> Deactivate
+                                        {% else %}
+                                            <i class="fas fa-power-off text-success me-2"></i> Activate
+                                        {% endif %}
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal{{ profile.id }}">
+                                        <i class="fas fa-trash-alt text-danger me-2"></i> Delete
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Edit User Modal - LIKE teacher_list.html -->
+                <div class="modal fade" id="editUserModal{{ profile.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+                                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit User</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="post" action="{% url 'admin_user_edit' profile.id %}">
+                                {% csrf_token %}
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">First Name</label>
+                                            <input type="text" name="first_name" value="{{ profile.user.first_name }}" class="form-control">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Last Name</label>
+                                            <input type="text" name="last_name" value="{{ profile.user.last_name }}" class="form-control">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Email</label>
+                                            <input type="email" name="email" value="{{ profile.user.email }}" class="form-control" readonly>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Phone</label>
+                                            <input type="text" name="phone_number" value="{{ profile.phone_number }}" class="form-control">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Role</label>
+                                            <select name="role" class="form-select">
+                                                <option value="admin" {% if profile.role == 'admin' %}selected{% endif %}>System Admin</option>
+                                                <option value="dept_admin" {% if profile.role == 'dept_admin' %}selected{% endif %}>Department Admin</option>
+                                                <option value="faculty_mentor" {% if profile.role == 'faculty_mentor' %}selected{% endif %}>Faculty Mentor</option>
+                                                <option value="evaluator" {% if profile.role == 'evaluator' %}selected{% endif %}>Faculty Evaluator</option>
+                                                <option value="hod" {% if profile.role == 'hod' %}selected{% endif %}>HoD/Coordinator</option>
+                                                <option value="student" {% if profile.role == 'student' %}selected{% endif %}>Student</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Status</label>
+                                            <select name="is_active" class="form-select">
+                                                <option value="1" {% if profile.is_active %}selected{% endif %}>Active</option>
+                                                <option value="0" {% if not profile.is_active %}selected{% endif %}>Inactive</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Update User</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete User Modal -->
+                <div class="modal fade" id="deleteUserModal{{ profile.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
+                        <div class="modal-content">
+                            <div class="modal-header bg-danger text-white" style="border-radius: 15px 15px 0 0;">
+                                <h5 class="modal-title"><i class="fas fa-trash-alt me-2"></i>Delete User</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body text-center py-4">
+                                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3 d-block"></i>
+                                <p class="mb-1 fw-semibold">Are you sure you want to delete <strong>{{ profile.user.email }}</strong>?</p>
+                                <h6 class="text-muted small mb-0">This action cannot be undone.</h6>
+                            </div>
+                            <div class="modal-footer justify-content-center gap-2">
+                                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                <a href="{% url 'admin_user_delete' profile.id %}" class="btn btn-danger px-4">
+                                    <i class="fas fa-trash me-2"></i>Delete
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Toggle User Modal -->
+                <div class="modal fade" id="toggleUserModal{{ profile.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
+                        <div class="modal-content">
+                            <div class="modal-header {% if profile.is_active %}bg-warning{% else %}bg-success{% endif %} text-white" style="border-radius: 15px 15px 0 0;">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-power-off me-2"></i>
+                                    {% if profile.is_active %}Deactivate{% else %}Activate{% endif %} User
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body text-center py-4">
+                                <i class="fas fa-user-lock fa-3x {% if profile.is_active %}text-warning{% else %}text-success{% endif %} mb-3 d-block"></i>
+                                <p class="mb-1 fw-semibold">
+                                    {% if profile.is_active %}
+                                        Are you sure you want to deactivate <strong>{{ profile.user.email }}</strong>?
+                                    {% else %}
+                                        Are you sure you want to activate <strong>{{ profile.user.email }}</strong>?
+                                    {% endif %}
+                                </p>
+                                <h6 class="text-muted small mb-0">
+                                    {% if profile.is_active %}
+                                        User will lose system access until activated again.
+                                    {% else %}
+                                        User will regain system access.
+                                    {% endif %}
+                                </h6>
+                            </div>
+                            <div class="modal-footer justify-content-center gap-2">
+                                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                <a href="{% url 'admin_user_toggle' profile.id %}" class="btn {% if profile.is_active %}btn-warning{% else %}btn-success{% endif %} px-4">
+                                    <i class="fas fa-power-off me-2"></i>
+                                    {% if profile.is_active %}Deactivate{% else %}Activate{% endif %}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Approve User Modal -->
+                {% if profile.role == 'student' and not profile.is_approved %}
+                <div class="modal fade" id="approveUserModal{{ profile.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
+                        <div class="modal-content">
+                            <div class="modal-header bg-success text-white" style="border-radius: 15px 15px 0 0;">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-check me-2"></i>Approve User
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body text-center py-4">
+                                <i class="fas fa-user-check fa-3x text-success mb-3 d-block"></i>
+                                <p class="mb-1 fw-semibold">Are you sure you want to approve <strong>{{ profile.user.email }}</strong>?</p>
+                                <h6 class="text-muted small mb-0">User will be able to login after approval.</h6>
+                            </div>
+                            <div class="modal-footer justify-content-center gap-2">
+                                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                <a href="{% url 'admin_user_approve' profile.id %}" class="btn btn-success px-4">
+                                    <i class="fas fa-check me-2"></i>Approve
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <i class="fas fa-users fa-2x text-muted d-block mb-2"></i>
+                        No users found
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add User Modal - LIKE teacher_list.html (form directly in modal) -->
+<div class="modal fade" id="addUserModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add New User</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'admin_user_add' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">First Name *</label>
+                            <input type="text" name="first_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Name *</label>
+                            <input type="text" name="last_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="email" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone Number</label>
+                            <input type="text" name="phone_number" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Role *</label>
+                            <select name="role" class="form-select" required>
+                                <option value="admin">System Admin</option>
+                                <option value="dept_admin">Department Admin</option>
+                                <option value="faculty_mentor">Faculty Mentor</option>
+                                <option value="evaluator">Faculty Evaluator</option>
+                                <option value="hod">HoD/Coordinator</option>
+                                <option value="student">Student</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select name="is_active" class="form-select">
+                                <option value="1">Active</option>
+                                <option value="0">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Upload Modal -->
+<div class="modal fade" id="bulkUploadModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Bulk Upload Users</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'bulk_upload_users' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">CSV File</label>
+                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                        <small class="text-muted">Required columns: FIRST_NAME, LAST_NAME, EMAIL, PHONE, ROLE</small>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <a href="#" class="alert-link">Download sample CSV template</a>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+</script>
+
 {% block extra_js %}
 <script>
-    $(document).ready(function() {
-        $('#usersTable').DataTable();
+$(document).ready(function () {
+    $('#usersTable').DataTable({
+        responsive: false,
+        autoWidth: true,
+        scrollX: false,
+        scrollCollapse: false,
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+        order: [[0, 'asc']],
+        columnDefs: [
+            {
+                targets: -1,
+                orderable: false,
+                searchable: false
+            }
+        ],
+        language: {
+            search: "",
+            searchPlaceholder: "Search users...",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ users",
+            infoEmpty: "No users found",
+            infoFiltered: "(filtered from _MAX_ total)",
+            emptyTable: "No users available",
+            zeroRecords: "No matching users found",
+            paginate: {
+                first: '<i class="fas fa-angle-double-left"></i>',
+                last: '<i class="fas fa-angle-double-right"></i>',
+                next: '<i class="fas fa-angle-right"></i>',
+                previous: '<i class="fas fa-angle-left"></i>'
+            }
+        },
+        dom: "<'row align-items-center g-2 mb-3'<'col-12 col-md-6'l><'col-12 col-md-6'f>>" +
+             "<'row'<'col-12'tr>>" +
+             "<'row align-items-center g-2 mt-3'<'col-12 col-md-5'i><'col-12 col-md-7'p>>"
     });
+});
 </script>
 {% endblock %}
 {% endblock %}

@@ -26,7 +26,14 @@ class Batch(models.Model):
     def __str__(self):
         return f"{self.name} ({self.programme.code})"
 
+# apps/core/models.py (Only the Student model part)
+
+# apps/core/models.py (Student model only - FIXED)
+
 class Student(models.Model):
+    """
+    Student model as per SRS - Direct fields, optional User link for Google Login
+    """
     STATUS_CHOICES = (
         ('active', 'Active'),
         ('completed', 'Completed'),
@@ -35,23 +42,81 @@ class Student(models.Model):
     )
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user_profile = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name='student_profile')
+    
+    # Direct fields from SRS
     register_number = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=250)
     email = models.EmailField(unique=True)
     mobile = models.CharField(max_length=20, blank=True)
+    
+    # Relationships
     programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name='students')
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='students')
+    
+    # Degree dates
     degree_start_date = models.DateField()
     degree_end_date = models.DateField(null=True, blank=True)
+    
+    # Status
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     remarks = models.TextField(blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_students')
+    
+    # Optional: Link to User for Google Login
+    user = models.OneToOneField(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='student_profile'
+    )
+    
+    # Tracking
+    created_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        related_name='created_students'
+    )
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
     
     def __str__(self):
         return f"{self.register_number} - {self.name}"
+    
+    def save(self, *args, **kwargs):
+        # Auto-create User if doesn't exist (no password for Google Login)
+        if not self.user:
+            user, created = User.objects.get_or_create(
+                email=self.email,
+                defaults={
+                    'username': self.email,
+                    'first_name': self.name.split()[0] if ' ' in self.name else self.name,
+                    'last_name': ' '.join(self.name.split()[1:]) if ' ' in self.name else '',
+                }
+            )
+            # No password set - Google Login handles authentication
+            if created:
+                user.save()
+            self.user = user
+        
+        # Create UserProfile for role-based access
+        if self.user:
+            profile, created = UserProfile.objects.get_or_create(
+                user=self.user,
+                defaults={
+                    'role': 'student',
+                    'phone_number': self.mobile or '',
+                    'is_active': True,
+                    'is_approved': True
+                }
+            )
+            if not created:
+                profile.role = 'student'
+                profile.phone_number = self.mobile or ''
+                profile.is_approved = True
+                profile.save()
+        
+        super().save(*args, **kwargs)
 
 class Organisation(models.Model):
     TYPE_CHOICES = (

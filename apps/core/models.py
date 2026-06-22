@@ -336,3 +336,74 @@ class ConsolidatedScore(models.Model):
     class Meta:
         ordering = ['-created_on']
         unique_together = ('student', 'calculation_formula')
+
+
+# apps/core/models.py - ADD THESE MODELS AT THE END
+
+class AssessmentConfiguration(models.Model):
+    """Configurable assessment rules"""
+    CALCULATION_CHOICES = (
+        ('simple_average', 'Simple Average'),
+        ('weighted_average', 'Weighted Average'),
+        ('best_n', 'Best N Internships'),
+        ('all_with_assessment', 'All Internships + Assessment'),
+        ('separate_components', 'Separate Components'),
+    )
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name='assessment_configs')
+    regular_internship_count = models.IntegerField(default=8)
+    assessment_internship_enabled = models.BooleanField(default=True)
+    assessment_internship_duration_months = models.IntegerField(default=3)
+    include_intermediate_marks = models.BooleanField(default=False)
+    calculation_formula = models.CharField(max_length=50, default='simple_average', choices=CALCULATION_CHOICES)
+    best_n_value = models.IntegerField(default=5, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.programme.name} Assessment Config"
+
+
+class Notification(models.Model):
+    NOTIFICATION_TYPES = (
+        ('info', 'Information'),
+        ('warning', 'Warning'),
+        ('success', 'Success'),
+        ('error', 'Error'),
+    )
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='info')
+    link = models.CharField(max_length=500, blank=True, null=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.title} - {self.recipient.username}"
+
+
+class AuditLog(models.Model):
+    """Audit log for user actions"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='audit_logs')
+    action = models.CharField(max_length=100)
+    module = models.CharField(max_length=100)
+    record_id = models.CharField(max_length=100, blank=True, null=True)
+    old_value = models.TextField(blank=True, null=True)
+    new_value = models.TextField(blank=True, null=True)
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.action} at {self.timestamp}"

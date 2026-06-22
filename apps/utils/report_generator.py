@@ -1,4 +1,4 @@
-# Internship-Management-System\apps\utils\report_generator.py
+# apps/utils/report_generator.py
 
 import pandas as pd
 from io import BytesIO
@@ -105,7 +105,7 @@ def generate_batch_report(batch):
                 student_data[f'Internship {i}'] = 'Pending'
         
         # Add average
-        from .calculations import calculate_student_average
+        from apps.utils.calculations import calculate_student_average
         student_data['Average'] = round(calculate_student_average(student), 2)
         
         data.append(student_data)

@@ -1,7 +1,8 @@
-# Internship-Management-System\apps\utils\calculations.py
+# apps/utils/calculations.py
 
 from django.db.models import Avg, Sum
-from ..models import AssessmentConfiguration
+
+from apps.core.models import AssessmentConfiguration
 
 
 def calculate_internship_score(internship):
@@ -98,7 +99,8 @@ def calculate_best_n_average(student, config):
 
 def calculate_student_consolidated_marks(student):
     """Calculate consolidated marks based on configuration"""
-    from ..models import AssessmentConfiguration
+    
+    from apps.core.models import AssessmentConfiguration
     
     # Get configuration for student's programme
     config = AssessmentConfiguration.objects.filter(

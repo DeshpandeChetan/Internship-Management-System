@@ -21,6 +21,15 @@ urlpatterns = [
     path('admin/dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
     
     # User Management
+    # path('admin/users/', admin_views.user_list, name='admin_users'),
+    # path('admin/users/add/', admin_views.user_add, name='admin_user_add'),
+    # path('admin/users/<uuid:pk>/edit/', admin_views.user_edit, name='admin_user_edit'),
+    # path('admin/users/<uuid:pk>/delete/', admin_views.user_delete, name='admin_user_delete'),
+    # path('admin/users/<uuid:pk>/toggle/', admin_views.user_toggle, name='admin_user_toggle'),
+    # path('admin/users/<uuid:pk>/approve/', admin_views.user_approve, name='admin_user_approve'),
+    # path('admin/users/bulk-upload/', admin_views.bulk_upload_users, name='bulk_upload_users'),
+    
+    # User Management (already exists, verify)
     path('admin/users/', admin_views.user_list, name='admin_users'),
     path('admin/users/add/', admin_views.user_add, name='admin_user_add'),
     path('admin/users/<uuid:pk>/edit/', admin_views.user_edit, name='admin_user_edit'),
@@ -35,6 +44,7 @@ urlpatterns = [
     path('admin/students/<uuid:pk>/', admin_views.student_detail, name='admin_student_detail'),
     path('admin/students/<uuid:pk>/edit/', admin_views.student_edit, name='admin_student_edit'),
     path('admin/students/<uuid:pk>/delete/', admin_views.student_delete, name='admin_student_delete'),
+    path('admin/students/bulk-upload/', admin_views.bulk_upload_students, name='admin_bulk_upload_students'),
     
     # Organisation Management
     path('admin/organisations/', admin_views.organisation_list, name='admin_organisations'),
@@ -42,6 +52,7 @@ urlpatterns = [
     path('admin/organisations/<uuid:pk>/edit/', admin_views.organisation_edit, name='admin_organisation_edit'),
     path('admin/organisations/<uuid:pk>/delete/', admin_views.organisation_delete, name='admin_organisation_delete'),
     path('admin/organisations/<uuid:pk>/toggle/', admin_views.organisation_toggle, name='admin_organisation_toggle'),
+    path('admin/organisations/<uuid:pk>/detail/', admin_views.organisation_detail, name='admin_organisation_detail'),
     
     # Programme Management
     path('admin/programmes/', admin_views.programme_list, name='admin_programmes'),

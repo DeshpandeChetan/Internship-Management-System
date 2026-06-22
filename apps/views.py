@@ -60,25 +60,25 @@ def privacy_policy(request):
 def terms_of_service(request):
     return render(request, 'accounts/terms.html', {'hide_sidebar': True, 'hide_header': True})
 
-@login_required
-def dashboard_redirect(request):
-    """Redirect to appropriate dashboard based on role"""
-    if request.user.role == 'pending':
-        messages.warning(request, 'Your account is pending admin approval.')
-        return render(request, 'accounts/pending_approval.html', {'hide_sidebar': True})
+# @login_required
+# def dashboard_redirect(request):
+#     """Redirect to appropriate dashboard based on role"""
+#     if request.user.role == 'pending':
+#         messages.warning(request, 'Your account is pending admin approval.')
+#         return render(request, 'accounts/pending_approval.html', {'hide_sidebar': True})
     
-    if request.user.role == 'admin':
-        return redirect('admin_dashboard')
-    if request.user.role in ['dept_admin', 'hod']:
-        return redirect('admin_dashboard')  # Department admin uses similar dashboard
-    if request.user.role == 'faculty_mentor':
-        return redirect('faculty_mentor_dashboard')
-    if request.user.role == 'faculty_evaluator':
-        return redirect('evaluator_dashboard')
-    if request.user.role == 'student':
-        return redirect('student_dashboard')
+#     if request.user.role == 'admin':
+#         return redirect('admin_dashboard')
+#     if request.user.role in ['dept_admin', 'hod']:
+#         return redirect('admin_dashboard')  # Department admin uses similar dashboard
+#     if request.user.role == 'faculty_mentor':
+#         return redirect('faculty_mentor_dashboard')
+#     if request.user.role == 'faculty_evaluator':
+#         return redirect('evaluator_dashboard')
+#     if request.user.role == 'student':
+#         return redirect('student_dashboard')
     
-    return redirect('home')
+#     return redirect('home')
 
 def custom_404(request, exception=None):
     return render(request, 'home/404.html', {'hide_sidebar': True, 'hide_header': True}, status=404)

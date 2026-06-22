@@ -23,7 +23,7 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('register/student/', views.register_student, name='register_student'),
     path('password-reset/', views.password_reset, name='password_reset'),
-    path('oauth/', include('social_django.urls', namespace='social')),
+    # path('oauth/', include('social_django.urls', namespace='social')),
     
     # Legal pages
     path('privacy/', views.privacy_policy, name='privacy_policy'),

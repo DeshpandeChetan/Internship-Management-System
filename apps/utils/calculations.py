@@ -1,5 +1,4 @@
-# utils/calculations.py
-# Create this file in: qb-generator/apps/utils/calculations.py
+# Internship-Management-System\apps\utils\calculations.py
 
 from django.db.models import Avg, Sum
 from ..models import AssessmentConfiguration

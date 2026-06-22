@@ -1,4 +1,4 @@
-# pipeline.py
+# Internship-Management-System\apps\pipeline.py
 from django.shortcuts import redirect
 from django.contrib import messages
 

@@ -1,4 +1,4 @@
-# faculty_mentor_views.py
+# Internship-Management-System\apps\faculty_mentor_views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages

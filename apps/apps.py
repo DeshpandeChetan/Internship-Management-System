@@ -1,11 +1,4 @@
-# from django.apps import AppConfig
-
-
-# class AppsConfig(AppConfig):
-#     name = 'apps'
-
-
-# apps.py
+# Internship-Management-System\apps\apps.py
 from django.apps import AppConfig
 
 

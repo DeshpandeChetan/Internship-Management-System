@@ -1,4 +1,4 @@
-# admin.py
+# Internship-Management-System\apps\admin.py
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (

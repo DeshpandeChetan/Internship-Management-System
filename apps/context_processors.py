@@ -1,6 +1,4 @@
-# context_processors.py
-# Create this file in: qb-generator/apps/context_processors.py
-
+# Internship-Management-System\apps\context_processors.py
 from django.conf import settings
 
 

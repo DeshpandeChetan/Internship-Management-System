@@ -1,5 +1,4 @@
-# utils/permissions.py
-# Create this file in: qb-generator/apps/utils/permissions.py
+# Internship-Management-System\apps\utils\permissions.py
 
 from functools import wraps
 from django.shortcuts import redirect

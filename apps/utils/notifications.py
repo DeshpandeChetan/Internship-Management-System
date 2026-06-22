@@ -1,4 +1,4 @@
-# utils/notifications.py
+# Internship-Management-System\apps\utils\notifications.py
 
 from ..models import Notification
 

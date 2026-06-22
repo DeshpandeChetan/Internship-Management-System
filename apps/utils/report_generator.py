@@ -1,5 +1,4 @@
-# utils/report_generator.py
-# Create this file in: qb-generator/apps/utils/report_generator.py
+# Internship-Management-System\apps\utils\report_generator.py
 
 import pandas as pd
 from io import BytesIO

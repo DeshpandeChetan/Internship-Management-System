@@ -6,7 +6,6 @@ from django.contrib.auth.models import User
 class UserProfile(models.Model):
     ROLE_CHOICES = (
         ('admin', 'System Admin'),
-        ('dept_admin', 'Department Admin'),
         ('faculty_mentor', 'Faculty Mentor'),
         ('evaluator', 'Faculty Evaluator'),
         ('hod', 'HoD/Coordinator'),

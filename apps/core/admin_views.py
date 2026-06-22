@@ -70,7 +70,7 @@ from .forms import (
 from .decorators import admin_required
 
 # Import utilities from apps/utils
-from apps.utils.permissions import is_admin, is_dept_admin
+from apps.utils.permissions import is_admin, is_dept_admin, is_hod
 from apps.utils.calculations import calculate_student_consolidated_marks
 from apps.utils.report_generator import generate_excel_report, generate_pdf_report
 from apps.utils.notifications import send_notification

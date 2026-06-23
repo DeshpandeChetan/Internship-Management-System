@@ -10,21 +10,45 @@
         {% if user.is_authenticated %}
             {% with role=user.profile.role %}
             
-            <!-- Dashboard - Common for all -->
+            <!-- ============================================ -->
+            <!-- DASHBOARD - Common for all roles -->
+            <!-- ============================================ -->
             <div class="nav-group">
                 <div class="nav-group-title">Dashboard</div>
-                <a class="nav-link {% if active_tab == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
-                    <i class="fas fa-chart-line"></i> Dashboard
-                </a>
+                
+                {% if role == 'admin' %}
+                    <a class="nav-link {% if active_tab == 'admin_dashboard' %}active{% endif %}" href="{% url 'admin_dashboard' %}">
+                        <i class="fas fa-chart-line"></i> Dashboard
+                    </a>
+                {% elif role == 'hod' %}
+                    <a class="nav-link {% if active_tab == 'hod_dashboard' %}active{% endif %}" href="{% url 'hod_dashboard' %}">
+                        <i class="fas fa-chart-line"></i> Dashboard
+                    </a>
+                {% elif role == 'faculty_mentor' %}
+                    <a class="nav-link {% if active_tab == 'mentor_dashboard' %}active{% endif %}" href="{% url 'mentor_dashboard' %}">
+                        <i class="fas fa-chart-line"></i> Dashboard
+                    </a>
+                {% elif role == 'evaluator' %}
+                    <a class="nav-link {% if active_tab == 'evaluator_dashboard' %}active{% endif %}" href="{% url 'evaluator_dashboard' %}">
+                        <i class="fas fa-chart-line"></i> Dashboard
+                    </a>
+                {% elif role == 'student' %}
+                    <a class="nav-link {% if active_tab == 'student_dashboard' %}active{% endif %}" href="{% url 'student_dashboard' %}">
+                        <i class="fas fa-chart-line"></i> Dashboard
+                    </a>
+                {% endif %}
             </div>
 
-            <!-- ADMIN / DEPT ADMIN Navigation -->
-            {% if role == 'admin' or role == 'dept_admin' %}
+            <!-- ============================================ -->
+            <!-- ADMIN MENU -->
+            <!-- ============================================ -->
+            {% if role == 'admin' %}
             <div class="nav-group">
                 <div class="nav-group-title">Management</div>
                 <a class="nav-link {% if active_tab == 'admin_users' %}active{% endif %}" href="{% url 'admin_users' %}">
                     <i class="fas fa-users"></i> Users
                 </a>
+                
                 <a class="nav-link {% if active_tab == 'admin_students' %}active{% endif %}" href="{% url 'admin_students' %}">
                     <i class="fas fa-user-graduate"></i> Students
                 </a>
@@ -50,9 +74,44 @@
                     <i class="fas fa-sliders-h"></i> Assessment Config
                 </a>
             </div>
+            <div class="nav-group">
+                <div class="nav-group-title">Reports</div>
+                <a class="nav-link {% if active_tab == 'admin_reports' %}active{% endif %}" href="{% url 'admin_reports' %}">
+                    <i class="fas fa-file-alt"></i> All Reports
+                </a>
+                <a class="nav-link {% if active_tab == 'consolidated' %}active{% endif %}" href="{% url 'consolidated_report' %}">
+                    <i class="fas fa-chart-bar"></i> Consolidated Marks
+                </a>
+            </div>
             {% endif %}
 
-            <!-- FACULTY MENTOR Navigation -->
+            <!-- ============================================ -->
+            <!-- HOD MENU -->
+            <!-- ============================================ -->
+            {% if role == 'hod' %}
+            <div class="nav-group">
+                <div class="nav-group-title">Management</div>
+                <a class="nav-link {% if active_tab == 'hod_students' %}active{% endif %}" href="{% url 'hod_students' %}">
+                    <i class="fas fa-user-graduate"></i> Students
+                </a>
+                <a class="nav-link {% if active_tab == 'hod_approvals' %}active{% endif %}" href="{% url 'hod_approvals' %}">
+                    <i class="fas fa-check-circle"></i> Approvals
+                </a>
+            </div>
+            <div class="nav-group">
+                <div class="nav-group-title">Reports</div>
+                <a class="nav-link {% if active_tab == 'hod_reports' %}active{% endif %}" href="{% url 'hod_reports' %}">
+                    <i class="fas fa-file-alt"></i> Reports
+                </a>
+                <a class="nav-link {% if active_tab == 'hod_consolidated_report' %}active{% endif %}" href="{% url 'hod_consolidated_report' %}">
+                    <i class="fas fa-chart-bar"></i> Consolidated Marks
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- ============================================ -->
+            <!-- FACULTY MENTOR MENU -->
+            <!-- ============================================ -->
             {% if role == 'faculty_mentor' %}
             <div class="nav-group">
                 <div class="nav-group-title">Mentoring</div>
@@ -68,7 +127,9 @@
             </div>
             {% endif %}
 
-            <!-- EVALUATOR Navigation -->
+            <!-- ============================================ -->
+            <!-- EVALUATOR MENU -->
+            <!-- ============================================ -->
             {% if role == 'evaluator' %}
             <div class="nav-group">
                 <div class="nav-group-title">Assessment</div>
@@ -81,20 +142,9 @@
             </div>
             {% endif %}
 
-            <!-- HOD Navigation -->
-            {% if role == 'hod' %}
-            <div class="nav-group">
-                <div class="nav-group-title">Overview</div>
-                <a class="nav-link {% if active_tab == 'hod_students' %}active{% endif %}" href="{% url 'hod_students' %}">
-                    <i class="fas fa-user-graduate"></i> Students
-                </a>
-                <a class="nav-link {% if active_tab == 'hod_approvals' %}active{% endif %}" href="{% url 'hod_approvals' %}">
-                    <i class="fas fa-check-circle"></i> Approvals
-                </a>
-            </div>
-            {% endif %}
-
-            <!-- STUDENT Navigation -->
+            <!-- ============================================ -->
+            <!-- STUDENT MENU -->
+            <!-- ============================================ -->
             {% if role == 'student' %}
             <div class="nav-group">
                 <div class="nav-group-title">My Records</div>
@@ -110,25 +160,14 @@
             </div>
             {% endif %}
 
-            <!-- Reports - Common for Admin, Dept Admin, HOD -->
-            {% if role == 'admin' or role == 'dept_admin' or role == 'hod' %}
-            <div class="nav-group">
-                <div class="nav-group-title">Reports</div>
-                <a class="nav-link {% if active_tab == 'admin_reports' %}active{% endif %}" href="{% url 'admin_reports' %}">
-                    <i class="fas fa-file-alt"></i> All Reports
-                </a>
-                <a class="nav-link {% if active_tab == 'consolidated' %}active{% endif %}" href="{% url 'consolidated_report' %}">
-                    <i class="fas fa-chart-bar"></i> Consolidated Marks
-                </a>
-            </div>
-            {% endif %}
-
             {% endwith %}
         {% endif %}
 
         <div class="sidebar-divider"></div>
 
-        <!-- Account -->
+        <!-- ============================================ -->
+        <!-- ACCOUNT - Common for all roles -->
+        <!-- ============================================ -->
         <div class="nav-group">
             <div class="nav-group-title">Account</div>
             <a class="nav-link {% if active_tab == 'profile' %}active{% endif %}" href="{% url 'profile' %}">

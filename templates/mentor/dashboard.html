@@ -1,58 +1,62 @@
 {% extends 'layout/base.html' %}
 
-{% block page_title %}Mentor Dashboard{% endblock %}
+{% block page_title %}Faculty Mentor Dashboard{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-6">
-        <div class="card stat-card">
-            <div class="card-body">
-                <h6 class="text-muted">Assigned Students</h6>
-                <h2 class="mb-0">{{ total_students }}</h2>
-            </div>
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="stat-card">
+            <h5>Assigned Students</h5>
+            <p class="display-6 mb-0">{{ total_students }}</p>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card stat-card">
-            <div class="card-body">
-                <h6 class="text-muted">Pending Verification</h6>
-                <h2 class="mb-0">{{ pending_verifications }}</h2>
-            </div>
+    <div class="col-lg-4">
+        <div class="stat-card">
+            <h5>Pending Verifications</h5>
+            <p class="display-6 mb-0">{{ pending_verifications }}</p>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="stat-card">
+            <h5>Pending Marks</h5>
+            <p class="display-6 mb-0">{{ pending_marks }}</p>
         </div>
     </div>
 </div>
 
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h6>Quick Actions</h6>
-            </div>
-            <div class="card-body">
-                <div class="row g-2">
-                    <div class="col-6">
-                        <a href="{% url 'mentor_assigned_students' %}" class="btn btn-primary w-100">
-                            <i class="fas fa-users"></i> My Students
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{% url 'mentor_pending_verification' %}" class="btn btn-warning w-100">
-                            <i class="fas fa-clock"></i> Pending Verification
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{% url 'mentor_all_internships' %}" class="btn btn-info w-100">
-                            <i class="fas fa-briefcase"></i> All Internships
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{% url 'profile' %}" class="btn btn-success w-100">
-                            <i class="fas fa-user"></i> My Profile
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="card shadow-sm mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Recent Submissions</h5>
     </div>
-    <div class="col-md-6">
-       
+    <div class="card-body">
+        {% if recent_submissions %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Student</th>
+                        <th>Organisation</th>
+                        <th>Submitted</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for internship in recent_submissions %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ internship.student.name }}</td>
+                        <td>{{ internship.organisation.name }}</td>
+                        <td>{{ internship.student_submission_date|date:'M d, Y' }}</td>
+                        <td>{{ internship.get_verification_status_display }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p>No recent submissions found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

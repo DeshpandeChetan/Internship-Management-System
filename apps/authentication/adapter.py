@@ -137,7 +137,7 @@
 
 
 
-# apps/authentication/adapter.py
+# # apps/authentication/adapter.py
 
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.contrib.auth.models import User

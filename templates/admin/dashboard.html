@@ -67,7 +67,6 @@
     </div>
 </div>
 
-<<<<<<< HEAD
 <!-- Pending Items -->
 <div class="row g-3 g-md-4 mt-2">
     <div class="col-md-4">
@@ -145,98 +144,17 @@
                         </a>
                     </div>
                     <div class="col-6 col-sm-4 col-md-2">
-                        <a href="{% url 'admin_settings' %}" class="btn btn-outline-dark w-100 py-2">
+                        <a href="" class="btn btn-outline-dark w-100 py-2">
                             <i class="fas fa-cog d-block mb-1"></i>
                             <small>Settings</small>
                         </a>
                     </div>
-=======
-<div class="row mt-4">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header bg-white">
-                <h6 class="mb-0">Recent Students</h6>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr><th>Reg No</th><th>Name</th><th>Programme</th><th>Batch</th><th>Status</th><th>Actions</th></tr>
-                        </thead>
-                        <tbody>
-                            {% for student in recent_students %}
-                            <tr>
-                                <td>{{ student.register_number }}</td>
-                                <td>{{ student.name }}</td>
-                                <td>{{ student.programme.name }}</td>
-                                <td>{{ student.batch.batch_year }}</td>
-                                <td><span class="badge bg-{% if student.current_status == 'active' %}success{% else %}secondary{% endif %}">{{ student.get_current_status_display }}</span></td>
-                                <td><a href="{% url 'admin_view_student' student.id %}" class="btn btn-sm btn-primary">View</a></td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="6" class="text-center">No students found</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card mb-3">
-            <div class="card-header bg-white">
-                <h6 class="mb-0">Quick Actions</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{% url 'admin_pending_users' %}" class="btn btn-warning">
-                        <i class="fas fa-user-check me-2"></i>Approve Users
-                        {% if pending_users_count %}<span class="badge bg-danger ms-2">{{ pending_users_count }}</span>{% endif %}
-                    </a>
-                    <a href="{% url 'admin_add_student' %}" class="btn btn-primary">
-                        <i class="fas fa-user-plus me-2"></i>Add Student
-                    </a>
-                    <a href="{% url 'admin_bulk_upload_students' %}" class="btn btn-info">
-                        <i class="fas fa-upload me-2"></i>Bulk Upload Students
-                    </a>
-                    <a href="{% url 'admin_add_organisation' %}" class="btn btn-success">
-                        <i class="fas fa-building me-2"></i>Add Organisation
-                    </a>
-                    <a href="{% url 'admin_add_programme' %}" class="btn btn-secondary">
-                        <i class="fas fa-graduation-cap me-2"></i>Add Programme
-                    </a>
-                    <a href="{% url 'admin_assessment_config' %}" class="btn btn-dark">
-                        <i class="fas fa-cog me-2"></i>Assessment Configuration
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header bg-white">
-                <h6 class="mb-0">Pending Verifications</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Internship Verifications:</span>
-                    <span class="badge bg-warning">{{ pending_verifications }}</span>
-                </div>
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Pending Marks Entry:</span>
-                    <span class="badge bg-warning">{{ pending_marks }}</span>
-                </div>
-                <div class="d-flex justify-content-between">
-                    <span>Documents Pending:</span>
-                    <span class="badge bg-warning">{{ pending_documents }}</span>
->>>>>>> b1dd710216a5bed5d5adad5c0949b51cbadcf114
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<<<<<<< HEAD
 <!-- Recent Activity - Optional -->
 <div class="row g-3 g-md-4 mt-2">
     <div class="col-12">
@@ -248,31 +166,10 @@
             <div class="card-body text-center text-muted py-4">
                 <i class="fas fa-chart-line fa-2x d-block mb-2"></i>
                 Activity feed will be displayed here
-=======
-<div class="row mt-3">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-white">
-                <h6 class="mb-0">Internship by Status</h6>
-            </div>
-            <div class="card-body">
-                <canvas id="statusChart" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-white">
-                <h6 class="mb-0">Internship by Type</h6>
-            </div>
-            <div class="card-body">
-                <canvas id="typeChart" height="200"></canvas>
->>>>>>> b1dd710216a5bed5d5adad5c0949b51cbadcf114
             </div>
         </div>
     </div>
 </div>
-<<<<<<< HEAD
 {% endblock %}
 
 {% block extra_css %}
@@ -286,40 +183,4 @@
         transform: translateY(-3px);
     }
 </style>
-=======
-
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    // Status Chart
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    const statusData = {{ internship_by_status|safe }};
-    new Chart(statusCtx, {
-        type: 'bar',
-        data: {
-            labels: statusData.map(item => item.verification_status),
-            datasets: [{
-                label: 'Internships',
-                data: statusData.map(item => item.count),
-                backgroundColor: '#3b82f6'
-            }]
-        }
-    });
-    
-    // Type Chart
-    const typeCtx = document.getElementById('typeChart').getContext('2d');
-    const typeData = {{ internship_by_type|safe }};
-    new Chart(typeCtx, {
-        type: 'pie',
-        data: {
-            labels: typeData.map(item => item.internship_type),
-            datasets: [{
-                data: typeData.map(item => item.count),
-                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
-            }]
-        }
-    });
-</script>
-{% endblock %}
->>>>>>> b1dd710216a5bed5d5adad5c0949b51cbadcf114
 {% endblock %}

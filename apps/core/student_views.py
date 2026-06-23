@@ -8,15 +8,17 @@ from .forms import InternshipForm
 @student_required
 def student_dashboard(request):
     """Student Dashboard"""
-    student = get_object_or_404(Student, user_profile=request.user.profile)
+    # FIX: Use 'user' instead of 'user_profile'
+    student = get_object_or_404(Student, user=request.user)
     internships = InternshipRecord.objects.filter(student=student)
     
     context = {
         'student': student,
-        'internships': internships,
         'total_internships': internships.count(),
         'completed_internships': internships.filter(completion_status='completed').count(),
+        'pending_verifications': internships.filter(verification_status='submitted').count(),
         'pending_internships': internships.filter(verification_status='submitted').count(),
+        'recent_internships': internships.order_by('-created_on')[:5],
         'active_tab': 'student_dashboard'
     }
     return render(request, 'student/dashboard.html', context)
@@ -24,14 +26,14 @@ def student_dashboard(request):
 @student_required
 def my_internships(request):
     """View student's internships"""
-    student = get_object_or_404(Student, user_profile=request.user.profile)
+    student = get_object_or_404(Student, user=request.user)
     internships = InternshipRecord.objects.filter(student=student).order_by('-start_date')
     return render(request, 'student/internships.html', {'internships': internships, 'active_tab': 'my_internships'})
 
 @student_required
 def internship_add(request):
     """Add new internship"""
-    student = get_object_or_404(Student, user_profile=request.user.profile)
+    student = get_object_or_404(Student, user=request.user)
     if request.method == 'POST':
         form = InternshipForm(request.POST, request.FILES)
         if form.is_valid():
@@ -49,20 +51,21 @@ def internship_add(request):
 @student_required
 def internship_detail(request, pk):
     """View internship details"""
-    student = get_object_or_404(Student, user_profile=request.user.profile)
+    student = get_object_or_404(Student, user=request.user)
     internship = get_object_or_404(InternshipRecord, pk=pk, student=student)
     return render(request, 'student/internship_detail.html', {'internship': internship, 'active_tab': 'my_internships'})
+
 
 @student_required
 def internship_edit(request, pk):
     """Edit internship"""
-    student = get_object_or_404(Student, user_profile=request.user.profile)
+    student = get_object_or_404(Student, user=request.user)
     internship = get_object_or_404(InternshipRecord, pk=pk, student=student)
     if request.method == 'POST':
         form = InternshipForm(request.POST, request.FILES, instance=internship)
         if form.is_valid():
             internship = form.save(commit=False)
-            internship.verification_status = 'draft'  # Reset verification on edit
+            internship.verification_status = 'draft'
             internship.save()
             messages.success(request, 'Internship updated successfully!')
             return redirect('my_internships')
@@ -73,7 +76,7 @@ def internship_edit(request, pk):
 @student_required
 def internship_delete(request, pk):
     """Delete internship"""
-    student = get_object_or_404(Student, user_profile=request.user.profile)
+    student = get_object_or_404(Student, user=request.user)
     internship = get_object_or_404(InternshipRecord, pk=pk, student=student)
     if request.method == 'POST':
         internship.delete()
@@ -84,9 +87,7 @@ def internship_delete(request, pk):
 @student_required
 def my_mentor(request):
     """View assigned mentor"""
-    student = get_object_or_404(Student, user_profile=request.user.profile)
-    # Get current mentor assignment
-    from ..mentor.models import MentorAssignment
+    student = get_object_or_404(Student, user=request.user)
     assignment = MentorAssignment.objects.filter(
         student=student, 
         is_active=True
@@ -96,8 +97,7 @@ def my_mentor(request):
 @student_required
 def my_marks(request):
     """View marks"""
-    student = get_object_or_404(Student, user_profile=request.user.profile)
-    from ..mentor.models import AssessmentMarks
+    student = get_object_or_404(Student, user=request.user)
     marks = AssessmentMarks.objects.filter(
         internship_record__student=student
     ).select_related('internship_record', 'assessment_component')

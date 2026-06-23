@@ -131,6 +131,11 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li>
+                                    <button class="dropdown-item" onclick="viewBatch('{{ batch.id }}')">
+                                        <i class="fas fa-eye text-info me-2"></i> View Details
+                                    </button>
+                                </li>
+                                <li>
                                     <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editBatchModal{{ batch.id }}">
                                         <i class="fas fa-edit text-primary me-2"></i> Edit
                                     </button>
@@ -319,16 +324,34 @@
     </div>
 </div>
 
-<script>
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-</script>
+{% endblock %}
 
 {% block extra_js %}
 <script>
+function viewBatch(id) {
+    fetch(`/dashboard/admin/batches/${id}/detail/`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('viewModalBody').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Batch Name:</strong> ${data.name}</p>
+                        <p><strong>Programme:</strong> ${data.programme}</p>
+                        <p><strong>Programme Code:</strong> ${data.programme_code}</p>
+                        <p><strong>Status:</strong> ${data.status}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Start Year:</strong> ${data.start_year}</p>
+                        <p><strong>End Year:</strong> ${data.end_year}</p>
+                        <p><strong>Students:</strong> ${data.students_count}</p>
+                        <p><strong>Created On:</strong> ${data.created_on}</p>
+                    </div>
+                </div>
+            `;
+            new bootstrap.Modal(document.getElementById('viewModal')).show();
+        });
+}
+
 $(document).ready(function () {
     $('#batchesTable').DataTable({
         responsive: false,
@@ -367,5 +390,4 @@ $(document).ready(function () {
     });
 });
 </script>
-{% endblock %}
 {% endblock %}

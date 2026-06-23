@@ -756,16 +756,27 @@ def organisation_delete(request, pk):
 @login_required
 @user_passes_test(is_admin)
 def organisation_detail(request, pk):
-    """View organisation details"""
+    """Return organisation details for modal."""
     organisation = get_object_or_404(Organisation, pk=pk)
-    internships = organisation.internship_records.select_related('student').all()
-    
-    context = {
-        'active_tab': 'admin_organisations',
-        'organisation': organisation,
-        'internships': internships,
-    }
-    return render(request, 'admin/organisation_detail.html', context)
+    internships_count = organisation.internships.count()
+
+    return JsonResponse({
+        'name': organisation.name,
+        'type': organisation.get_organisation_type_display(),
+        'contact_person': organisation.contact_person or '-',
+        'designation': organisation.designation or '-',
+        'email': organisation.email or '-',
+        'phone': organisation.phone or '-',
+        'address': organisation.address or '-',
+        'city': organisation.city or '-',
+        'state': organisation.state or '-',
+        'website': organisation.website or '-',
+        'area_of_work': organisation.area_of_work or '-',
+        'feedback_rating': str(organisation.feedback_rating) if organisation.feedback_rating is not None else '-',
+        'remarks': organisation.remarks or '-',
+        'status': 'Active' if organisation.is_active else 'Inactive',
+        'internships_count': internships_count,
+    })
 
 
 # ============================================
@@ -851,6 +862,22 @@ def programme_delete(request, pk):
     programme.delete()
     messages.success(request, f'Programme {programme.name} deleted successfully!')
     return redirect('admin_programmes')
+
+
+@login_required
+@user_passes_test(is_admin)
+def programme_detail(request, pk):
+    """Return programme details for modal."""
+    programme = get_object_or_404(Programme, pk=pk)
+    return JsonResponse({
+        'name': programme.name,
+        'code': programme.code,
+        'duration_years': programme.duration_years,
+        'status': 'Active' if programme.is_active else 'Inactive',
+        'batches_count': programme.batches.count(),
+        'students_count': programme.students.count(),
+        'created_on': programme.created_on.strftime('%d %b %Y'),
+    })
 
 
 # ============================================
@@ -939,6 +966,23 @@ def batch_delete(request, pk):
     return redirect('admin_batches')
 
 
+@login_required
+@user_passes_test(is_admin)
+def batch_detail(request, pk):
+    """Return batch details for modal."""
+    batch = get_object_or_404(Batch.objects.select_related('programme'), pk=pk)
+    return JsonResponse({
+        'name': batch.name,
+        'programme': batch.programme.name,
+        'programme_code': batch.programme.code,
+        'start_year': batch.start_year,
+        'end_year': batch.end_year,
+        'status': 'Active' if batch.is_active else 'Inactive',
+        'students_count': batch.students.count(),
+        'created_on': batch.created_on.strftime('%d %b %Y'),
+    })
+
+
 # ============================================
 # INTERNSHIP MANAGEMENT
 # ============================================
@@ -970,14 +1014,24 @@ def internship_list(request):
 @login_required
 @user_passes_test(is_admin)
 def internship_detail(request, pk):
-    """View internship details"""
+    """Return internship details for modal."""
     internship = get_object_or_404(InternshipRecord, pk=pk)
-    
-    context = {
-        'active_tab': 'admin_internships',
-        'internship': internship,
-    }
-    return render(request, 'admin/internship_detail.html', context)
+
+    return JsonResponse({
+        'student': f'{internship.student.name} ({internship.student.register_number})',
+        'type': internship.get_internship_type_display(),
+        'number': internship.internship_number,
+        'organisation': internship.organisation.name,
+        'semester': internship.related_semester or '-',
+        'period': f"{internship.start_date.strftime('%d %b %Y')} - {internship.end_date.strftime('%d %b %Y')}",
+        'duration': f'{internship.duration} days' if internship.duration is not None else '-',
+        'mode': internship.get_mode_display(),
+        'completion_status': internship.get_completion_status_display(),
+        'verification_status': internship.get_verification_status_display(),
+        'submission_date': internship.submission_date.strftime('%d %b %Y') if internship.submission_date else '-',
+        'nature_of_work': internship.nature_of_work or '-',
+        'remarks': internship.remarks or '-',
+    })
 
 
 # ============================================
@@ -993,6 +1047,7 @@ def break_list(request):
     context = {
         'active_tab': 'admin_breaks',
         'breaks': breaks,
+        'students': Student.objects.all().order_by('register_number'),
     }
     return render(request, 'admin/breaks.html', context)
 
@@ -1005,7 +1060,9 @@ def break_add(request):
         form = BreakForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                break_record = form.save()
+                break_record = form.save(commit=False)
+                break_record.student = get_object_or_404(Student, pk=request.POST.get('student'))
+                break_record.save()
                 messages.success(request, 'Break record added successfully!')
                 return redirect('admin_breaks')
             except Exception as e:
@@ -1053,6 +1110,25 @@ def break_delete(request, pk):
     return redirect('admin_breaks')
 
 
+@login_required
+@user_passes_test(is_admin)
+def break_detail(request, pk):
+    """Return break details for modal."""
+    break_record = get_object_or_404(BreakRecord.objects.select_related('student'), pk=pk)
+    duration = (break_record.end_date - break_record.start_date).days
+    return JsonResponse({
+        'student': f'{break_record.student.register_number} - {break_record.student.name}',
+        'break_type': break_record.get_break_type_display(),
+        'start_date': break_record.start_date.strftime('%d %b %Y'),
+        'end_date': break_record.end_date.strftime('%d %b %Y'),
+        'duration': f'{duration} days',
+        'reason': break_record.reason or '-',
+        'impact': break_record.impact_on_internship or '',
+        'document': break_record.supporting_document.url if break_record.supporting_document else '',
+        'remarks': break_record.remarks or '',
+    })
+
+
 # ============================================
 # ASSESSMENT CONFIGURATION
 # ============================================
@@ -1096,6 +1172,49 @@ def assessment_component_delete(request, pk):
     return redirect('admin_assessment_config')
 
 
+@login_required
+@user_passes_test(is_admin)
+def assessment_component_detail(request, pk):
+    """Return assessment component details for modal."""
+    component = get_object_or_404(AssessmentComponent, pk=pk)
+    return JsonResponse({
+        'name': component.name,
+        'assessment_type': component.get_assessment_type_display(),
+        'default_max_marks': str(component.default_max_marks),
+        'weightage': str(component.weightage),
+        'is_mandatory': 'Yes' if component.is_mandatory else 'No',
+        'status': 'Active' if component.is_active else 'Inactive',
+        'created_on': component.created_on.strftime('%d %b %Y'),
+    })
+
+
+@login_required
+@user_passes_test(is_admin)
+def assessment_component_edit(request, pk):
+    """Edit assessment component."""
+    component = get_object_or_404(AssessmentComponent, pk=pk)
+
+    if request.method == 'POST':
+        form = AssessmentComponentForm(request.POST, instance=component)
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, f'Component {component.name} updated successfully!')
+                return redirect('admin_assessment_config')
+            except Exception as e:
+                messages.error(request, f'Error updating component: {str(e)}')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+        return redirect('admin_assessment_config')
+
+    return render(request, 'admin/assessment_component_form.html', {
+        'component': component,
+        'assessment_types': AssessmentComponent.ASSESSMENT_TYPES,
+    })
+
+
 # ============================================
 # MENTOR ASSIGNMENT
 # ============================================
@@ -1105,7 +1224,7 @@ def assessment_component_delete(request, pk):
 def mentor_assignment_list(request):
     """Manage mentor assignments"""
     assignments = MentorAssignment.objects.select_related('student', 'faculty_mentor').all()
-    faculty_mentors = UserProfile.objects.filter(role='faculty_mentor')
+    faculty_mentors = UserProfile.objects.filter(role__in=['faculty_mentor', 'hod'])
     
     context = {
         'active_tab': 'admin_mentor_assignments',
@@ -1116,10 +1235,28 @@ def mentor_assignment_list(request):
     return render(request, 'admin/mentor_assignments.html', context)
 
 
-@login_required
+# @login_required
+# @user_passes_test(is_admin)
+# def mentor_assignment_add(request):
+#     """Add mentor assignment via AJAX"""
+#     if request.method == 'POST':
+#         form = MentorAssignmentForm(request.POST)
+#         if form.is_valid():
+#             try:
+#                 assignment = form.save(commit=False)
+#                 assignment.assigned_by = request.user
+#                 assignment.save()
+#                 messages.success(request, 'Mentor assignment added successfully!')
+#                 return JsonResponse({'success': True})
+#             except Exception as e:
+#                 return JsonResponse({'success': False, 'error': str(e)})
+#         else:
+#             return JsonResponse({'success': False, 'errors': form.errors})
+    
+#     return JsonResponse({'success': False, 'error': 'Invalid request'})@login_required
 @user_passes_test(is_admin)
 def mentor_assignment_add(request):
-    """Add mentor assignment via AJAX"""
+    """Add mentor assignment"""
     if request.method == 'POST':
         form = MentorAssignmentForm(request.POST)
         if form.is_valid():
@@ -1128,13 +1265,92 @@ def mentor_assignment_add(request):
                 assignment.assigned_by = request.user
                 assignment.save()
                 messages.success(request, 'Mentor assignment added successfully!')
-                return JsonResponse({'success': True})
+                return redirect('admin_mentor_assignments')  # ✅ Redirect, not JSON
             except Exception as e:
+                messages.error(request, f'Error adding assignment: {str(e)}')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+        return redirect('admin_mentor_assignments')
+    
+    return redirect('admin_mentor_assignments')
+
+@login_required
+@user_passes_test(is_admin)
+def mentor_assignment_detail(request, pk):
+    """Get assignment details for modal"""
+    assignment = get_object_or_404(MentorAssignment, pk=pk)
+    
+    data = {
+        'student': assignment.student.name,
+        'register_number': assignment.student.register_number,
+        'mentor': assignment.faculty_mentor.user.get_full_name() or assignment.faculty_mentor.user.email,
+        'effective_from': assignment.effective_from.strftime('%d %b %Y'),
+        'effective_to': assignment.effective_to.strftime('%d %b %Y') if assignment.effective_to else 'Current',
+        'level': assignment.get_assignment_level_display(),
+        'status': 'Active' if assignment.is_active else 'Inactive',
+        'reason': assignment.reason_for_change or 'N/A',
+        'remarks': assignment.remarks or 'N/A',
+        'is_active': assignment.is_active,
+    }
+    return JsonResponse(data)
+
+import logging
+logger = logging.getLogger(__name__)
+@login_required
+@user_passes_test(is_admin)
+def mentor_assignment_edit(request, pk):
+    """Edit mentor assignment via AJAX"""
+    assignment = get_object_or_404(MentorAssignment, pk=pk)
+    
+    logger.info(f"Edit assignment called for pk: {pk}, method: {request.method}")
+    
+    if request.method == 'POST':
+        logger.info(f"POST data: {request.POST}")
+        form = MentorAssignmentForm(request.POST, instance=assignment)
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, 'Mentor assignment updated successfully!')
+                logger.info(f"Assignment {pk} updated successfully")
+                return JsonResponse({'success': True, 'message': 'Assignment updated successfully!'})
+            except Exception as e:
+                logger.error(f"Error saving assignment: {str(e)}")
                 return JsonResponse({'success': False, 'error': str(e)})
         else:
-            return JsonResponse({'success': False, 'errors': form.errors})
+            logger.error(f"Form errors: {form.errors}")
+            errors = {}
+            for field, error_list in form.errors.items():
+                errors[field] = [str(e) for e in error_list]
+            return JsonResponse({'success': False, 'errors': errors})
     
-    return JsonResponse({'success': False, 'error': 'Invalid request'})
+    # GET request - return assignment data
+    logger.info(f"Returning assignment data for {pk}")
+    data = {
+        'id': str(assignment.id),
+        'student': str(assignment.student.id),
+        'faculty_mentor': str(assignment.faculty_mentor.id),
+        'effective_from': assignment.effective_from.strftime('%Y-%m-%d'),
+        'effective_to': assignment.effective_to.strftime('%Y-%m-%d') if assignment.effective_to else '',
+        'assignment_level': assignment.assignment_level,
+        'related_semester': assignment.related_semester or '',
+        'reason_for_change': assignment.reason_for_change or '',
+        'remarks': assignment.remarks or '',
+    }
+    return JsonResponse(data)
+
+
+@login_required
+@user_passes_test(is_admin)
+def mentor_assignment_toggle(request, pk):
+    """Toggle assignment active status"""
+    assignment = get_object_or_404(MentorAssignment, pk=pk)
+    assignment.is_active = not assignment.is_active
+    assignment.save()
+    status = "activated" if assignment.is_active else "deactivated"
+    messages.success(request, f'Assignment {status} successfully!')
+    return redirect('admin_mentor_assignments')
 
 
 @login_required

@@ -1,0 +1,43 @@
+<form method="post" action="{% url 'admin_assessment_component_edit' component.id %}">
+    {% csrf_token %}
+    <div class="modal-body">
+        <div class="row">
+            <div class="col-md-12 mb-3">
+                <label class="form-label">Component Name *</label>
+                <input type="text" name="name" value="{{ component.name }}" class="form-control" required>
+            </div>
+            <div class="col-md-12 mb-3">
+                <label class="form-label">Assessment Type *</label>
+                <select name="assessment_type" class="form-select" required>
+                    {% for type_code, type_label in assessment_types %}
+                    <option value="{{ type_code }}" {% if component.assessment_type == type_code %}selected{% endif %}>{{ type_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Default Max Marks *</label>
+                <input type="number" name="default_max_marks" value="{{ component.default_max_marks }}" class="form-control" required step="0.5" min="1">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Weightage (%)</label>
+                <input type="number" name="weightage" value="{{ component.weightage }}" class="form-control" step="0.5" min="0" max="100">
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="form-check">
+                    <input type="checkbox" name="is_mandatory" class="form-check-input" id="editIsMandatory" {% if component.is_mandatory %}checked{% endif %}>
+                    <label class="form-check-label" for="editIsMandatory">Mandatory</label>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="form-check">
+                    <input type="checkbox" name="is_active" class="form-check-input" id="editIsActive" {% if component.is_active %}checked{% endif %}>
+                    <label class="form-check-label" for="editIsActive">Active</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Update Component</button>
+    </div>
+</form>

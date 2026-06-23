@@ -60,6 +60,7 @@ urlpatterns = [
     path('admin/programmes/<uuid:pk>/edit/', admin_views.programme_edit, name='admin_programme_edit'),
     path('admin/programmes/<uuid:pk>/delete/', admin_views.programme_delete, name='admin_programme_delete'),
     path('admin/programmes/<uuid:pk>/toggle/', admin_views.programme_toggle, name='admin_programme_toggle'),
+    path('admin/programmes/<uuid:pk>/detail/', admin_views.programme_detail, name='admin_programme_detail'),
     
     # Batch Management
     path('admin/batches/', admin_views.batch_list, name='admin_batches'),
@@ -67,6 +68,7 @@ urlpatterns = [
     path('admin/batches/<uuid:pk>/edit/', admin_views.batch_edit, name='admin_batch_edit'),
     path('admin/batches/<uuid:pk>/delete/', admin_views.batch_delete, name='admin_batch_delete'),
     path('admin/batches/<uuid:pk>/toggle/', admin_views.batch_toggle, name='admin_batch_toggle'),
+    path('admin/batches/<uuid:pk>/detail/', admin_views.batch_detail, name='admin_batch_detail'),
     
     # Internship Management
     path('admin/internships/', admin_views.internship_list, name='admin_internships'),
@@ -75,17 +77,23 @@ urlpatterns = [
     # Break Management
     path('admin/breaks/', admin_views.break_list, name='admin_breaks'),
     path('admin/breaks/add/', admin_views.break_add, name='admin_break_add'),
+    path('admin/breaks/<uuid:pk>/', admin_views.break_detail, name='admin_break_detail'),
     path('admin/breaks/<uuid:pk>/edit/', admin_views.break_edit, name='admin_break_edit'),
     path('admin/breaks/<uuid:pk>/delete/', admin_views.break_delete, name='admin_break_delete'),
     
     # Assessment Configuration
     path('admin/assessment-config/', admin_views.assessment_config, name='admin_assessment_config'),
     path('admin/assessment-config/<uuid:pk>/delete/', admin_views.assessment_component_delete, name='admin_assessment_component_delete'),
+    path('admin/assessment-config/<uuid:pk>/detail/', admin_views.assessment_component_detail, name='admin_assessment_component_detail'),
+    path('admin/assessment-config/<uuid:pk>/edit/', admin_views.assessment_component_edit, name='admin_assessment_component_edit'),
     
     # Mentor Assignment
     path('admin/mentor-assignments/', admin_views.mentor_assignment_list, name='admin_mentor_assignments'),
     path('admin/mentor-assignments/add/', admin_views.mentor_assignment_add, name='admin_mentor_assignment_add'),
     path('admin/mentor-assignments/<uuid:pk>/delete/', admin_views.mentor_assignment_delete, name='admin_mentor_assignment_delete'),
+    path('admin/mentor-assignments/<uuid:pk>/detail/', admin_views.mentor_assignment_detail, name='admin_mentor_assignment_detail'),
+    path('admin/mentor-assignments/<uuid:pk>/edit/', admin_views.mentor_assignment_edit, name='admin_mentor_assignment_edit'),
+    path('admin/mentor-assignments/<uuid:pk>/toggle/', admin_views.mentor_assignment_toggle, name='admin_mentor_assignment_toggle'),
     
     # Reports
     path('admin/reports/', admin_views.admin_reports, name='admin_reports'),

@@ -174,17 +174,15 @@ def profile_update(request):
     """Update user profile via modal"""
     if request.method == 'POST':
         user = request.user
-        first_name = request.POST.get('first_name')
-        last_name = request.POST.get('last_name')
+        first_name = request.POST.get('first_name', '')
+        last_name = request.POST.get('last_name', '')
         phone_number = request.POST.get('phone_number')
         
-        if first_name:
-            user.first_name = first_name
-        if last_name:
-            user.last_name = last_name
+        user.first_name = first_name
+        user.last_name = last_name
         user.save()
         
-        if phone_number and hasattr(request.user, 'profile'):
+        if phone_number is not None and hasattr(request.user, 'profile'):
             profile = request.user.profile
             profile.phone_number = phone_number
             profile.save()

@@ -319,45 +319,37 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
 <script>
 function viewBreak(id) {
-    $.get(`/dashboard/admin/breaks/${id}/`, function(data) {
-        const html = `
-            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
-                <h5 class="modal-title"><i class="fas fa-eye me-2"></i>Break Details</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
+    fetch(`/dashboard/admin/breaks/${id}/`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('viewModalBody').innerHTML = `
                 <div class="row">
                     <div class="col-md-6">
                         <p><strong>Student:</strong> ${data.student}</p>
                         <p><strong>Break Type:</strong> ${data.break_type}</p>
                         <p><strong>Start Date:</strong> ${data.start_date}</p>
+                        <p><strong>End Date:</strong> ${data.end_date}</p>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>End Date:</strong> ${data.end_date}</p>
                         <p><strong>Duration:</strong> ${data.duration}</p>
-                        <p><strong>Reason:</strong> ${data.reason || '-'}</p>
+                        <p><strong>Reason:</strong> ${data.reason}</p>
+                        ${data.document ? `<p><strong>Document:</strong> <a href="${data.document}" target="_blank">View</a></p>` : '<p><strong>Document:</strong> -</p>'}
+                    </div>
+                    <div class="col-12">
+                        ${data.impact ? `<p><strong>Impact on Internship:</strong> ${data.impact}</p>` : ''}
+                        ${data.remarks ? `<p><strong>Remarks:</strong> ${data.remarks}</p>` : ''}
                     </div>
                 </div>
-                ${data.impact ? `<p><strong>Impact on Internship:</strong> ${data.impact}</p>` : ''}
-                ${data.document ? `<p><strong>Document:</strong> <a href="${data.document}" target="_blank">View</a></p>` : ''}
-                ${data.remarks ? `<p><strong>Remarks:</strong> ${data.remarks}</p>` : ''}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        `;
-        
-        document.getElementById('viewModalBody').innerHTML = html;
-        const modal = new bootstrap.Modal(document.getElementById('viewModal'));
-        modal.show();
-    });
+            `;
+            new bootstrap.Modal(document.getElementById('viewModal')).show();
+        });
 }
-</script>
 
-{% block extra_js %}
-<script>
 $(document).ready(function () {
     $('#breaksTable').DataTable({
         responsive: false,
@@ -396,5 +388,4 @@ $(document).ready(function () {
     });
 });
 </script>
-{% endblock %}
 {% endblock %}

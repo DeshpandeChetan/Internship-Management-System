@@ -131,6 +131,11 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li>
+                                    <button class="dropdown-item" onclick="viewProgramme('{{ programme.id }}')">
+                                        <i class="fas fa-eye text-info me-2"></i> View Details
+                                    </button>
+                                </li>
+                                <li>
                                     <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editProgrammeModal{{ programme.id }}">
                                         <i class="fas fa-edit text-primary me-2"></i> Edit
                                     </button>
@@ -300,16 +305,33 @@
     </div>
 </div>
 
-<script>
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-</script>
+{% endblock %}
 
 {% block extra_js %}
 <script>
+function viewProgramme(id) {
+    fetch(`/dashboard/admin/programmes/${id}/detail/`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('viewModalBody').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Programme Name:</strong> ${data.name}</p>
+                        <p><strong>Code:</strong> ${data.code}</p>
+                        <p><strong>Duration:</strong> ${data.duration_years} years</p>
+                        <p><strong>Status:</strong> ${data.status}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Batches:</strong> ${data.batches_count}</p>
+                        <p><strong>Students:</strong> ${data.students_count}</p>
+                        <p><strong>Created On:</strong> ${data.created_on}</p>
+                    </div>
+                </div>
+            `;
+            new bootstrap.Modal(document.getElementById('viewModal')).show();
+        });
+}
+
 $(document).ready(function () {
     $('#programmesTable').DataTable({
         responsive: false,
@@ -348,5 +370,4 @@ $(document).ready(function () {
     });
 });
 </script>
-{% endblock %}
 {% endblock %}

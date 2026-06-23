@@ -261,6 +261,16 @@ class MentorAssignment(models.Model):
     
     class Meta:
         ordering = ['-effective_from']
+    
+    def save(self, *args, **kwargs):
+        """Auto-deactivate if effective_to date has passed"""
+        from django.utils import timezone
+        
+        # If effective_to is set and is in the past, auto set is_active=False
+        if self.effective_to and self.effective_to < timezone.now().date():
+            self.is_active = False
+        
+        super().save(*args, **kwargs)
 
 
 class AssessmentComponent(models.Model):

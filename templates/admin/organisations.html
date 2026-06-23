@@ -155,6 +155,11 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li>
+                                    <button class="dropdown-item" onclick="viewOrganisation('{{ org.id }}')">
+                                        <i class="fas fa-eye text-info me-2"></i> View Details
+                                    </button>
+                                </li>
+                                <li>
                                     <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editOrgModal{{ org.id }}">
                                         <i class="fas fa-edit text-primary me-2"></i> Edit
                                     </button>
@@ -391,16 +396,43 @@
     </div>
 </div>
 
-<script>
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-</script>
+{% endblock %}
 
 {% block extra_js %}
 <script>
+function viewOrganisation(id) {
+    fetch(`/dashboard/admin/organisations/${id}/detail/`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('viewModalBody').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Name:</strong> ${data.name}</p>
+                        <p><strong>Type:</strong> ${data.type}</p>
+                        <p><strong>Contact Person:</strong> ${data.contact_person}</p>
+                        <p><strong>Designation:</strong> ${data.designation}</p>
+                        <p><strong>Email:</strong> ${data.email}</p>
+                        <p><strong>Phone:</strong> ${data.phone}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>City:</strong> ${data.city}</p>
+                        <p><strong>State:</strong> ${data.state}</p>
+                        <p><strong>Website:</strong> ${data.website}</p>
+                        <p><strong>Feedback Rating:</strong> ${data.feedback_rating}</p>
+                        <p><strong>Status:</strong> ${data.status}</p>
+                        <p><strong>Internships:</strong> ${data.internships_count}</p>
+                    </div>
+                    <div class="col-12">
+                        <p><strong>Address:</strong> ${data.address}</p>
+                        <p><strong>Area of Work:</strong> ${data.area_of_work}</p>
+                        <p><strong>Remarks:</strong> ${data.remarks}</p>
+                    </div>
+                </div>
+            `;
+            new bootstrap.Modal(document.getElementById('viewModal')).show();
+        });
+}
+
 $(document).ready(function () {
     $('#orgTable').DataTable({
         responsive: false,
@@ -439,5 +471,4 @@ $(document).ready(function () {
     });
 });
 </script>
-{% endblock %}
 {% endblock %}

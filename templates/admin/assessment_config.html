@@ -139,6 +139,11 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li>
+                                    <button class="dropdown-item" onclick="viewComponent('{{ component.id }}')">
+                                        <i class="fas fa-eye text-info me-2"></i> View Details
+                                    </button>
+                                </li>
+                                <li>
                                     <button class="dropdown-item" onclick="editComponent('{{ component.id }}')">
                                         <i class="fas fa-edit text-primary me-2"></i> Edit
                                     </button>
@@ -249,28 +254,51 @@
     </div>
 </div>
 
-<script>
-function editComponent(id) {
-    // Load edit form via AJAX
-    $.get(`/dashboard/admin/assessment-config/${id}/edit/`, function(data) {
-        const modal = new bootstrap.Modal(document.getElementById('genericModal'));
-        const header = document.getElementById('genericModalHeader');
-        const title = document.getElementById('genericModalTitle');
-        const body = document.getElementById('genericModalBody');
-        
-        header.className = 'modal-header';
-        header.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
-        header.style.color = 'white';
-        title.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Component';
-        
-        body.innerHTML = data;
-        modal.show();
-    });
-}
-</script>
+{% endblock %}
 
 {% block extra_js %}
 <script>
+function viewComponent(id) {
+    fetch(`/dashboard/admin/assessment-config/${id}/detail/`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('viewModalBody').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Name:</strong> ${data.name}</p>
+                        <p><strong>Assessment Type:</strong> ${data.assessment_type}</p>
+                        <p><strong>Default Max Marks:</strong> ${data.default_max_marks}</p>
+                        <p><strong>Weightage:</strong> ${data.weightage}%</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Mandatory:</strong> ${data.is_mandatory}</p>
+                        <p><strong>Status:</strong> ${data.status}</p>
+                        <p><strong>Created On:</strong> ${data.created_on}</p>
+                    </div>
+                </div>
+            `;
+            new bootstrap.Modal(document.getElementById('viewModal')).show();
+        });
+}
+
+function editComponent(id) {
+    fetch(`/dashboard/admin/assessment-config/${id}/edit/`)
+        .then(response => response.text())
+        .then(html => {
+            const modal = new bootstrap.Modal(document.getElementById('genericModal'));
+            const header = document.getElementById('genericModalHeader');
+            const title = document.getElementById('genericModalTitle');
+            const body = document.getElementById('genericModalBody');
+
+            header.className = 'modal-header';
+            header.style.background = 'linear-gradient(135deg, #1e3a8a, #1e40af)';
+            header.style.color = 'white';
+            title.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Component';
+            body.innerHTML = html;
+            modal.show();
+        });
+}
+
 $(document).ready(function () {
     $('#componentsTable').DataTable({
         responsive: false,
@@ -309,5 +337,4 @@ $(document).ready(function () {
     });
 });
 </script>
-{% endblock %}
 {% endblock %}

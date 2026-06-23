@@ -6,78 +6,31 @@
 
 {% block extra_css %}
 <style>
-    @media (min-width: 769px) {
-        .data-table-wrapper .table-responsive { overflow-x: visible !important; overflow-y: visible !important; }
-        #assignmentsTable { width: 100% !important; }
-        #assignmentsTable th, #assignmentsTable td { white-space: nowrap; }
-        #assignmentsTable td:last-child { overflow: visible !important; }
-        .dataTables_wrapper { width: 100% !important; overflow: visible !important; }
-        .data-table-wrapper { overflow: visible !important; }
-    }
-    @media (max-width: 768px) {
-        .dataTables_wrapper { overflow-x: auto !important; }
-        .table-responsive { overflow-x: auto !important; }
-    }
-    div.dataTables_wrapper div.dataTables_length select { min-width: 70px; }
-    .dropdown-menu { z-index: 9999 !important; position: absolute; }
-    .dropdown-item { cursor: pointer; padding: 8px 16px; font-size: 0.85rem; }
-    .dropdown-item i { width: 18px; text-align: center; }
-    .dropdown-item:hover { background-color: #f8f9fa; }
-    body.modal-open { overflow-y: auto !important; padding-right: 0 !important; }
-    .data-table-wrapper, .dataTables_wrapper, .table-responsive { overflow: visible !important; }
-    
-    .dataTables_wrapper .dataTables_filter {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        width: 100%;
-        margin-bottom: 12px;
-    }
-    .dataTables_wrapper .dataTables_filter label {
-        width: 100%;
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin: 0;
-    }
-    .dataTables_wrapper .dataTables_filter input {
-        width: 260px !important;
-        max-width: 100%;
-        border-radius: 8px;
-        border: 1px solid #ced4da;
-        padding: 6px 12px;
-        margin-left: 0 !important;
-    }
-    .dataTables_wrapper .dataTables_length select {
-        min-width: 75px;
-        padding: 5px 32px 5px 10px !important;
-        border-radius: 6px;
-        border: 1px solid #ced4da;
-    }
-    @media (max-width: 768px) {
-        .dataTables_wrapper .row {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .dataTables_wrapper .dataTables_filter,
-        .dataTables_wrapper .dataTables_length,
-        .dataTables_wrapper .dataTables_info,
-        .dataTables_wrapper .dataTables_paginate {
-            width: 100%;
-            text-align: left !important;
-            justify-content: flex-start !important;
-        }
-        .dataTables_wrapper .dataTables_filter label { justify-content: flex-start; }
-        .dataTables_wrapper .dataTables_filter input { width: 100% !important; }
-    }
-    .badge-status { padding: 5px 12px; border-radius: 20px; font-weight: 500; font-size: 0.75rem; }
+    .modal-header.bg-primary { background: linear-gradient(135deg, #1e3a8a, #1e40af) !important; }
+    .modal-header.bg-success { background: linear-gradient(135deg, #10b981, #059669) !important; }
     .modal-header.bg-danger { background: linear-gradient(135deg, #dc2626, #b91c1c) !important; }
     .modal-header.bg-warning { background: linear-gradient(135deg, #f59e0b, #d97706) !important; }
-    .modal-header.bg-success { background: linear-gradient(135deg, #10b981, #059669) !important; }
-    .modal-header.bg-primary { background: linear-gradient(135deg, #1e3a8a, #1e40af) !important; }
+    .badge-status { padding: 5px 12px; border-radius: 20px; font-weight: 500; font-size: 0.75rem; }
+    
+    /* ✅ FIX: Remove scrollbar issues */
+    .data-table-wrapper {
+        overflow: visible !important;
+    }
+    .data-table-wrapper .table-responsive {
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+    }
+    #assignmentsTable {
+        width: 100% !important;
+    }
+    .dataTables_wrapper {
+        overflow: visible !important;
+    }
+    @media (max-width: 768px) {
+        .data-table-wrapper .table-responsive {
+            overflow-x: auto !important;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -140,6 +93,20 @@
                                         <i class="fas fa-eye text-info me-2"></i> View Details
                                     </button>
                                 </li>
+                                <li>
+                                    <button class="dropdown-item" onclick="editAssignment('{{ assignment.id }}')">
+                                        <i class="fas fa-edit text-primary me-2"></i> Edit
+                                    </button>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item" onclick="toggleAssignment('{{ assignment.id }}', {% if assignment.is_active %}true{% else %}false{% endif %})">
+                                        {% if assignment.is_active %}
+                                            <i class="fas fa-pause text-warning me-2"></i> Deactivate
+                                        {% else %}
+                                            <i class="fas fa-play text-success me-2"></i> Activate
+                                        {% endif %}
+                                    </button>
+                                </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteAssignmentModal{{ assignment.id }}">
@@ -187,11 +154,117 @@
     </div>
 </div>
 
+<!-- View Details Modal -->
+<div class="modal fade" id="viewModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg" style="margin-top: 60px;">
+        <div class="modal-content">
+            <div id="viewModalBody"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Toggle Confirmation Modal -->
+<div class="modal fade" id="toggleAssignmentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-power-off me-2"></i>Toggle Status</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-question-circle fa-3x text-warning mb-3 d-block"></i>
+                <p class="mb-1 fw-semibold" id="toggleMessage">Are you sure you want to change the status of this assignment?</p>
+                <h6 class="text-muted small mb-0" id="toggleSubMessage">This will affect the assignment availability.</h6>
+            </div>
+            <div class="modal-footer justify-content-center gap-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                <a href="#" id="toggleConfirmBtn" class="btn btn-warning px-4">
+                    <i class="fas fa-power-off me-2"></i>Confirm
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Assignment Modal -->
+<div class="modal fade" id="editAssignmentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg" style="margin-top: 60px;">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Assignment</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editAssignmentForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" name="assignment_id" id="edit_assignment_id">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Student *</label>
+                            <select name="student" id="edit_student" class="form-select" required>
+                                <option value="">Select Student</option>
+                                {% for student in students %}
+                                <option value="{{ student.id }}">{{ student.register_number }} - {{ student.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Faculty Mentor *</label>
+                            <select name="faculty_mentor" id="edit_faculty_mentor" class="form-select" required>
+                                <option value="">Select Mentor</option>
+                                {% for mentor in faculty_mentors %}
+                                <option value="{{ mentor.id }}">{{ mentor.user.get_full_name|default:mentor.user.email }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Effective From *</label>
+                            <input type="date" name="effective_from" id="edit_effective_from" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Effective To</label>
+                            <input type="date" name="effective_to" id="edit_effective_to" class="form-control">
+                            <small class="text-muted">Leave empty for current/ongoing</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Assignment Level</label>
+                            <select name="assignment_level" id="edit_assignment_level" class="form-select">
+                                <option value="student">Student</option>
+                                <option value="batch">Batch</option>
+                                <option value="programme">Programme</option>
+                                <option value="internship">Internship Specific</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Related Semester</label>
+                            <input type="text" name="related_semester" id="edit_related_semester" class="form-control">
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Reason for Change</label>
+                            <textarea name="reason_for_change" id="edit_reason_for_change" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Remarks</label>
+                            <textarea name="remarks" id="edit_remarks" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="editSubmitBtn">
+                        <i class="fas fa-save me-2"></i>Update Assignment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Add Assignment Modal -->
 <div class="modal fade" id="addAssignmentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+            <div class="modal-header bg-success text-white" style="border-radius: 15px 15px 0 0;">
                 <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add Mentor Assignment</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -231,6 +304,7 @@
                                 <option value="student">Student</option>
                                 <option value="batch">Batch</option>
                                 <option value="programme">Programme</option>
+                                <option value="internship">Internship Specific</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -249,52 +323,19 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Assignment</button>
+                    <button type="submit" class="btn btn-success">Save Assignment</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<script>
-function viewAssignment(id) {
-    $.get(`/dashboard/admin/mentor-assignments/${id}/`, function(data) {
-        const html = `
-            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
-                <h5 class="modal-title"><i class="fas fa-eye me-2"></i>Assignment Details</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Student:</strong> ${data.student}</p>
-                        <p><strong>Mentor:</strong> ${data.mentor}</p>
-                        <p><strong>Effective From:</strong> ${data.effective_from}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Effective To:</strong> ${data.effective_to || 'Current'}</p>
-                        <p><strong>Level:</strong> ${data.level}</p>
-                        <p><strong>Status:</strong> ${data.status}</p>
-                    </div>
-                </div>
-                ${data.reason ? `<p><strong>Reason:</strong> ${data.reason}</p>` : ''}
-                ${data.remarks ? `<p><strong>Remarks:</strong> ${data.remarks}</p>` : ''}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        `;
-        
-        document.getElementById('viewModalBody').innerHTML = html;
-        const modal = new bootstrap.Modal(document.getElementById('viewModal'));
-        modal.show();
-    });
-}
-</script>
+{% endblock %}
 
 {% block extra_js %}
 <script>
-$(document).ready(function () {
+$(document).ready(function() {
+    // Initialize DataTable
     $('#assignmentsTable').DataTable({
         responsive: false,
         autoWidth: true,
@@ -331,6 +372,201 @@ $(document).ready(function () {
              "<'row align-items-center g-2 mt-3'<'col-12 col-md-5'i><'col-12 col-md-7'p>>"
     });
 });
+
+// View Assignment Details
+function viewAssignment(id) {
+    $.ajax({
+        url: `/dashboard/admin/mentor-assignments/${id}/detail/`,
+        method: 'GET',
+        success: function(data) {
+            const statusBadge = data.is_active ? 
+                '<span class="badge bg-success">Active</span>' : 
+                '<span class="badge bg-danger">Inactive</span>';
+            
+            const html = `
+                <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+                    <h5 class="modal-title"><i class="fas fa-eye me-2"></i>Assignment Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Student:</strong> ${data.student}</p>
+                            <p><strong>Register Number:</strong> ${data.register_number}</p>
+                            <p><strong>Mentor:</strong> ${data.mentor}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Effective From:</strong> ${data.effective_from}</p>
+                            <p><strong>Effective To:</strong> ${data.effective_to}</p>
+                            <p><strong>Status:</strong> ${statusBadge}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Level:</strong> ${data.level}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Reason:</strong> ${data.reason}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <p><strong>Remarks:</strong> ${data.remarks}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            `;
+            
+            document.getElementById('viewModalBody').innerHTML = html;
+            const modal = new bootstrap.Modal(document.getElementById('viewModal'));
+            modal.show();
+        },
+        error: function() {
+            alert('Error loading assignment details. Please try again.');
+        }
+    });
+}
+
+// Edit Assignment - Load data into modal
+function editAssignment(id) {
+    console.log('Edit button clicked for ID:', id);
+    
+    // Show loading state
+    $('#editSubmitBtn').html('<span class="spinner-border spinner-border-sm me-2"></span>Loading...');
+    $('#editSubmitBtn').prop('disabled', true);
+    
+    $.ajax({
+        url: `/dashboard/admin/mentor-assignments/${id}/edit/`,
+        method: 'GET',
+        success: function(data) {
+            console.log('Edit data received:', data);
+            
+            // Populate form fields
+            $('#edit_assignment_id').val(data.id);
+            $('#editAssignmentForm').attr('action', `/dashboard/admin/mentor-assignments/${data.id}/edit/`);
+            $('#edit_student').val(data.student);
+            $('#edit_faculty_mentor').val(data.faculty_mentor);
+            $('#edit_effective_from').val(data.effective_from);
+            $('#edit_effective_to').val(data.effective_to);
+            $('#edit_assignment_level').val(data.assignment_level);
+            $('#edit_related_semester').val(data.related_semester);
+            $('#edit_reason_for_change').val(data.reason_for_change);
+            $('#edit_remarks').val(data.remarks);
+            
+            // Reset button
+            $('#editSubmitBtn').html('<i class="fas fa-save me-2"></i>Update Assignment');
+            $('#editSubmitBtn').prop('disabled', false);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('editAssignmentModal'));
+            modal.show();
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading assignment:', error);
+            console.error('Response:', xhr.responseText);
+            alert('Error loading assignment details. Please try again.');
+            $('#editSubmitBtn').html('<i class="fas fa-save me-2"></i>Update Assignment');
+            $('#editSubmitBtn').prop('disabled', false);
+        }
+    });
+}
+
+// Edit Form Submit - Handle AJAX submission
+$(document).on('submit', '#editAssignmentForm', function(e) {
+    e.preventDefault();
+    console.log('Edit form submitted');
+    
+    const id = $('#edit_assignment_id').val();
+    const formData = $(this).serialize();
+    console.log('Form data:', formData);
+    
+    // Show loading state
+    $('#editSubmitBtn').html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
+    $('#editSubmitBtn').prop('disabled', true);
+    
+    $.ajax({
+        url: `/dashboard/admin/mentor-assignments/${id}/edit/`,
+        method: 'POST',
+        data: formData,
+        headers: {
+            'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
+        },
+        success: function(response) {
+            console.log('Update response:', response);
+            
+            if (response.success) {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editAssignmentModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                // Reload page to show updated data
+                location.reload();
+            } else {
+                // Show errors
+                let errorMsg = 'Error updating assignment:\n';
+                if (response.errors) {
+                    for (const [field, errors] of Object.entries(response.errors)) {
+                        errorMsg += `${field}: ${errors.join(', ')}\n`;
+                    }
+                } else if (response.error) {
+                    errorMsg += response.error;
+                } else {
+                    errorMsg += 'Please check the form and try again.';
+                }
+                alert(errorMsg);
+                
+                // Reset button
+                $('#editSubmitBtn').html('<i class="fas fa-save me-2"></i>Update Assignment');
+                $('#editSubmitBtn').prop('disabled', false);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error updating assignment:', error);
+            console.error('Response:', xhr.responseText);
+            
+            let errorMsg = 'Error updating assignment. Please try again.';
+            
+            // Check if there's a response with more details
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            
+            alert(errorMsg);
+            
+            // Reset button
+            $('#editSubmitBtn').html('<i class="fas fa-save me-2"></i>Update Assignment');
+            $('#editSubmitBtn').prop('disabled', false);
+        }
+    });
+});
+
+// Toggle Assignment - Uses Modal instead of confirm popup
+function toggleAssignment(id, currentStatus) {
+    const statusText = currentStatus ? 'Deactivate' : 'Activate';
+    const statusColor = currentStatus ? 'danger' : 'success';
+    const statusIcon = currentStatus ? 'pause' : 'play';
+    
+    // Set modal message
+    document.getElementById('toggleMessage').innerHTML = 
+        `Are you sure you want to <strong>${statusText}</strong> this assignment?`;
+    document.getElementById('toggleSubMessage').innerHTML = 
+        currentStatus ? 
+        'This will make the assignment inactive. Students will no longer see this mentor.' : 
+        'This will make the assignment active. Students will be able to see this mentor.';
+    
+    // Set confirm button
+    const confirmBtn = document.getElementById('toggleConfirmBtn');
+    confirmBtn.href = `/dashboard/admin/mentor-assignments/${id}/toggle/`;
+    confirmBtn.className = `btn btn-${statusColor} px-4`;
+    confirmBtn.innerHTML = `<i class="fas fa-${statusIcon} me-2"></i>${statusText}`;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('toggleAssignmentModal'));
+    modal.show();
+}
 </script>
-{% endblock %}
 {% endblock %}

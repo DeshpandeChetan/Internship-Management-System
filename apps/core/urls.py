@@ -37,14 +37,18 @@ urlpatterns = [
     path('admin/users/<uuid:pk>/toggle/', admin_views.user_toggle, name='admin_user_toggle'),
     path('admin/users/<uuid:pk>/approve/', admin_views.user_approve, name='admin_user_approve'),
     path('admin/users/bulk-upload/', admin_views.bulk_upload_users, name='bulk_upload_users'),
+    path('admin/users/bulk-upload/sample/', admin_views.user_bulk_upload_sample, name='bulk_upload_users_sample'),
     
     # Student Management
     path('admin/students/', admin_views.student_list, name='admin_students'),
     path('admin/students/add/', admin_views.student_add, name='admin_student_add'),
+    path('admin/students/requests/<uuid:pk>/approve/', admin_views.student_request_approve, name='admin_student_request_approve'),
+    path('admin/students/requests/<uuid:pk>/reject/', admin_views.student_request_reject, name='admin_student_request_reject'),
     path('admin/students/<uuid:pk>/', admin_views.student_detail, name='admin_student_detail'),
     path('admin/students/<uuid:pk>/edit/', admin_views.student_edit, name='admin_student_edit'),
     path('admin/students/<uuid:pk>/delete/', admin_views.student_delete, name='admin_student_delete'),
     path('admin/students/bulk-upload/', admin_views.bulk_upload_students, name='admin_bulk_upload_students'),
+    path('admin/students/bulk-upload/sample/', admin_views.student_bulk_upload_sample, name='admin_bulk_upload_students_sample'),
     
     # Organisation Management
     path('admin/organisations/', admin_views.organisation_list, name='admin_organisations'),
@@ -55,6 +59,11 @@ urlpatterns = [
     path('admin/organisations/<uuid:pk>/detail/', admin_views.organisation_detail, name='admin_organisation_detail'),
     
     # Programme Management
+    path('admin/departments/', admin_views.department_list, name='admin_departments'),
+    path('admin/departments/add/', admin_views.department_add, name='admin_department_add'),
+    path('admin/departments/<uuid:pk>/edit/', admin_views.department_edit, name='admin_department_edit'),
+    path('admin/departments/<uuid:pk>/toggle/', admin_views.department_toggle, name='admin_department_toggle'),
+
     path('admin/programmes/', admin_views.programme_list, name='admin_programmes'),
     path('admin/programmes/add/', admin_views.programme_add, name='admin_programme_add'),
     path('admin/programmes/<uuid:pk>/edit/', admin_views.programme_edit, name='admin_programme_edit'),
@@ -73,6 +82,7 @@ urlpatterns = [
     # Internship Management
     path('admin/internships/', admin_views.internship_list, name='admin_internships'),
     path('admin/internships/<uuid:pk>/', admin_views.internship_detail, name='admin_internship_detail'),
+    path('admin/internships/<uuid:pk>/verify/', admin_views.internship_verify, name='admin_internship_verify'),
     
     # Break Management
     path('admin/breaks/', admin_views.break_list, name='admin_breaks'),
@@ -98,7 +108,7 @@ urlpatterns = [
     # Reports
     path('admin/reports/', admin_views.admin_reports, name='admin_reports'),
     path('admin/consolidated/', admin_views.consolidated_report, name='consolidated_report'),
-    path('admin/export/<str:report_type>/', admin_views.export_report, name='export_report'),
+    path('admin/export/<str:report_type>/', admin_views.export_report, name='admin_export_report'),
     
     # ============================================
     # STUDENT URLS
@@ -112,6 +122,8 @@ urlpatterns = [
     path('student/internships/<uuid:pk>/delete/', student_views.internship_delete, name='student_internship_delete'),
     path('student/mentor/', student_views.my_mentor, name='my_mentor'),
     path('student/marks/', student_views.my_marks, name='my_marks'),
+    path('student/breaks/', student_views.my_breaks, name='student_breaks'),
+    path('student/breaks/add/', student_views.break_add, name='student_add_break'),
     
     # ============================================
     # MENTOR URLS
@@ -122,6 +134,7 @@ urlpatterns = [
     path('mentor/pending-verification/', mentor_views.pending_verification, name='mentor_pending_verification'),
     path('mentor/verify/<uuid:pk>/', mentor_views.verify_internship, name='mentor_verify_internship'),
     path('mentor/internships/<uuid:pk>/', mentor_views.internship_detail, name='mentor_internship_detail'),
+    path('mentor/marks/enter/<uuid:pk>/', mentor_views.enter_marks, name='mentor_enter_marks'),
     path('mentor/all-internships/', mentor_views.all_internships, name='mentor_all_internships'),
     
     # ============================================
@@ -130,6 +143,9 @@ urlpatterns = [
     path('evaluator/dashboard/', evaluator_views.evaluator_dashboard, name='evaluator_dashboard'),
     path('evaluator/pending-assessments/', evaluator_views.pending_assessments, name='evaluator_pending_assessments'),
     path('evaluator/marks/enter/<uuid:pk>/', evaluator_views.enter_marks, name='evaluator_enter_marks'),
+    path('evaluator/marks/<uuid:pk>/edit/', evaluator_views.edit_marks, name='evaluator_edit_marks'),
+    path('evaluator/marks/<uuid:pk>/lock/', evaluator_views.lock_marks, name='evaluator_lock_marks'),
+    path('evaluator/marks/<uuid:pk>/history/', evaluator_views.mark_history, name='evaluator_mark_history'),
     path('evaluator/history/', evaluator_views.assessment_history, name='evaluator_history'),
     
     # ============================================
@@ -147,5 +163,5 @@ urlpatterns = [
     # REPORTS (Shared)
     # ============================================
     path('reports/', views.report_list, name='report_list'),
-    path('reports/export/<str:report_type>/', views.export_report, name='export_report'),
+    path('reports/export/<str:report_type>/', views.export_report, name='report_export'),
 ]

@@ -107,6 +107,7 @@
                     <th>Start Date</th>
                     <th>End Date</th>
                     <th>Duration</th>
+                    <th>Approved By</th>
                     <th>Reason</th>
                     <th>Actions</th>
                 </tr>
@@ -126,6 +127,7 @@
                     <td>{{ break_record.start_date|date:"d M Y" }}</td>
                     <td>{{ break_record.end_date|date:"d M Y" }}</td>
                     <td>{{ break_record.start_date|timesince:break_record.end_date }}</td>
+                    <td>{{ break_record.approved_by.get_full_name|default:break_record.approved_by.email|default:"-" }}</td>
                     <td>{{ break_record.reason|truncatechars:30|default:"-" }}</td>
                     <td>
                         <div class="dropdown">
@@ -188,6 +190,17 @@
                                             <input type="date" name="end_date" value="{{ break_record.end_date|date:'Y-m-d' }}" class="form-control" required>
                                         </div>
                                         <div class="col-md-12 mb-3">
+                                            <label class="form-label">Approved By Authority</label>
+                                            <select name="approved_by" class="form-select">
+                                                <option value="">Select Authority</option>
+                                                {% for approver in approvers %}
+                                                <option value="{{ approver.id }}" {% if break_record.approved_by_id == approver.id %}selected{% endif %}>
+                                                    {{ approver.get_full_name|default:approver.email }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-12 mb-3">
                                             <label class="form-label">Reason</label>
                                             <textarea name="reason" class="form-control" rows="2">{{ break_record.reason }}</textarea>
                                         </div>
@@ -242,7 +255,7 @@
 
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center py-4">
+                    <td colspan="8" class="text-center py-4">
                         <i class="fas fa-pause fa-2x text-muted d-block mb-2"></i>
                         No break records found
                     </td>
@@ -293,6 +306,15 @@
                             <input type="date" name="end_date" class="form-control" required>
                         </div>
                         <div class="col-md-12 mb-3">
+                            <label class="form-label">Approved By Authority</label>
+                            <select name="approved_by" class="form-select">
+                                <option value="">Select Authority</option>
+                                {% for approver in approvers %}
+                                <option value="{{ approver.id }}">{{ approver.get_full_name|default:approver.email }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-12 mb-3">
                             <label class="form-label">Reason</label>
                             <textarea name="reason" class="form-control" rows="2"></textarea>
                         </div>
@@ -337,12 +359,36 @@ function viewBreak(id) {
                     </div>
                     <div class="col-md-6">
                         <p><strong>Duration:</strong> ${data.duration}</p>
+                        <p><strong>Approved By Authority:</strong> ${data.approved_by}</p>
                         <p><strong>Reason:</strong> ${data.reason}</p>
                         ${data.document ? `<p><strong>Document:</strong> <a href="${data.document}" target="_blank">View</a></p>` : '<p><strong>Document:</strong> -</p>'}
                     </div>
                     <div class="col-12">
                         ${data.impact ? `<p><strong>Impact on Internship:</strong> ${data.impact}</p>` : ''}
                         ${data.remarks ? `<p><strong>Remarks:</strong> ${data.remarks}</p>` : ''}
+                        <p><strong>Overlaps Internship Period:</strong> ${data.overlaps.length ? 'Yes' : 'No'}</p>
+                        ${data.overlaps.length ? `
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>No.</th>
+                                            <th>Organisation</th>
+                                            <th>Period</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.overlaps.map(item => `
+                                            <tr>
+                                                <td>${item.number}</td>
+                                                <td>${item.organisation}</td>
+                                                <td>${item.period}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;

@@ -4,6 +4,17 @@ from django.db import models
 from django.contrib.auth.models import User
 from apps.authentication.models import UserProfile
 
+class Department(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200, unique=True)
+    code = models.CharField(max_length=20, unique=True)
+    is_active = models.BooleanField(default=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
 class Programme(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200, unique=True)
@@ -51,11 +62,12 @@ class Student(models.Model):
     mobile = models.CharField(max_length=20, blank=True)
     
     # Relationships
-    programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name='students')
-    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='students')
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
+    programme = models.ForeignKey(Programme, on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
+    batch = models.ForeignKey(Batch, on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
     
     # Degree dates
-    degree_start_date = models.DateField()
+    degree_start_date = models.DateField(null=True, blank=True)
     degree_end_date = models.DateField(null=True, blank=True)
     
     # Status
@@ -113,6 +125,7 @@ class Student(models.Model):
             )
             if not created:
                 profile.role = 'student'
+                profile.department = self.department
                 profile.phone_number = self.mobile or ''
                 profile.is_approved = True
                 profile.save()
@@ -133,6 +146,7 @@ class Organisation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=250, unique=True)
     organisation_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    organisation_type_other = models.CharField(max_length=100, blank=True)
     contact_person = models.CharField(max_length=200, blank=True)
     designation = models.CharField(max_length=200, blank=True)
     email = models.EmailField(blank=True)
@@ -149,7 +163,13 @@ class Organisation(models.Model):
     updated_on = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return f"{self.name} ({self.get_organisation_type_display()})"
+        return f"{self.name} ({self.type_display})"
+
+    @property
+    def type_display(self):
+        if self.organisation_type == 'other' and self.organisation_type_other:
+            return f"Other / {self.organisation_type_other}"
+        return self.get_organisation_type_display()
 
 class InternshipRecord(models.Model):
     INTERNSHIP_TYPES = (
@@ -183,7 +203,13 @@ class InternshipRecord(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     mode = models.CharField(max_length=20, choices=(('offline', 'Offline'), ('online', 'Online'), ('hybrid', 'Hybrid')), default='offline')
+    academic_phase = models.CharField(max_length=50, blank=True)
     nature_of_work = models.TextField(blank=True)
+    supporting_document = models.FileField(upload_to='internship_documents/', blank=True, null=True)
+    certificate_upload = models.FileField(upload_to='internship_certificates/', blank=True, null=True)
+    report_upload = models.FileField(upload_to='internship_reports/', blank=True, null=True)
+    date_override_approved = models.BooleanField(default=False)
+    date_override_reason = models.TextField(blank=True)
     submission_date = models.DateField(null=True, blank=True)
     completion_status = models.CharField(max_length=20, choices=COMPLETION_STATUS, default='pending')
     verification_status = models.CharField(max_length=20, choices=VERIFICATION_STATUS, default='draft')
@@ -191,6 +217,7 @@ class InternshipRecord(models.Model):
     verified_at = models.DateTimeField(null=True, blank=True)
     remarks = models.TextField(blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_internships')
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='updated_internships')
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
     
@@ -199,6 +226,19 @@ class InternshipRecord(models.Model):
         if self.start_date and self.end_date:
             return (self.end_date - self.start_date).days
         return None
+
+    @property
+    def overlapping_breaks(self):
+        if not self.start_date or not self.end_date:
+            return BreakRecord.objects.none()
+        return self.student.breaks.filter(
+            start_date__lte=self.end_date,
+            end_date__gte=self.start_date
+        )
+
+    @property
+    def has_break_overlap(self):
+        return self.overlapping_breaks.exists()
     
     def __str__(self):
         return f"{self.student.register_number} - {self.internship_type} #{self.internship_number}"
@@ -307,11 +347,13 @@ class AssessmentMarks(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     internship_record = models.ForeignKey('InternshipRecord', on_delete=models.CASCADE, related_name='assessment_marks')
     assessment_component = models.ForeignKey(AssessmentComponent, on_delete=models.CASCADE, related_name='assessment_marks')
+    assessment_name = models.CharField(max_length=200, blank=True)
     maximum_marks = models.DecimalField(max_digits=5, decimal_places=2)
     marks_awarded = models.DecimalField(max_digits=5, decimal_places=2)
     weightage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     assessment_date = models.DateField(null=True, blank=True)
     evaluator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='entered_marks')
+    supporting_document = models.FileField(upload_to='assessment_documents/', blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     remarks = models.TextField(blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
@@ -324,7 +366,22 @@ class AssessmentMarks(models.Model):
     
     class Meta:
         ordering = ['-created_on']
-        unique_together = ('internship_record', 'assessment_component')
+
+
+class AssessmentMarksHistory(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    assessment_marks = models.ForeignKey(AssessmentMarks, on_delete=models.CASCADE, related_name='edit_history')
+    edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assessment_mark_edits')
+    old_values = models.JSONField(default=dict, blank=True)
+    new_values = models.JSONField(default=dict, blank=True)
+    remarks = models.TextField(blank=True)
+    edited_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-edited_on']
+
+    def __str__(self):
+        return f"{self.assessment_marks_id} edited on {self.edited_on}"
 
 
 class ConsolidatedScore(models.Model):

@@ -15,6 +15,7 @@ class UserProfile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
+    department = models.ForeignKey('core.Department', on_delete=models.SET_NULL, null=True, blank=True, related_name='user_profiles')
     phone_number = models.CharField(max_length=20, blank=True)
     is_active = models.BooleanField(default=True)  # User is active
     is_approved = models.BooleanField(default=False)  # Admin approval required for students
@@ -29,6 +30,6 @@ class UserProfile(models.Model):
     
     def can_login(self):
         """Check if user can login (active and approved)"""
-        if self.role in ['admin', 'dept_admin', 'faculty_mentor', 'evaluator', 'hod']:
+        if self.role in ['admin', 'faculty_mentor', 'evaluator', 'hod']:
             return self.is_active
         return self.is_active and self.is_approved

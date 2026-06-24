@@ -16,6 +16,7 @@
                         <th>Internship</th>
                         <th>Organisation</th>
                         <th>Period</th>
+                        <th>Documents</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -27,17 +28,93 @@
                         <td>{{ internship.organisation.name }}</td>
                         <td>{{ internship.start_date|date:"d M Y" }} - {{ internship.end_date|date:"d M Y" }}</td>
                         <td>
-                            <a href="{% url 'mentor_verify_internship' internship.id %}" class="btn btn-sm btn-success">
-                                <i class="fas fa-check"></i> Verify
-                            </a>
-                            <button type="button" class="btn btn-sm btn-info" onclick="viewInternship('{{ internship.id }}')">
-                                <i class="fas fa-eye"></i> View
-                            </button>
+                            {% if internship.certificate_upload %}<a href="{{ internship.certificate_upload.url }}" target="_blank">Certificate</a>{% endif %}
+                            {% if internship.report_upload %}{% if internship.certificate_upload %}<br>{% endif %}<a href="{{ internship.report_upload.url }}" target="_blank">Report</a>{% endif %}
+                            {% if internship.supporting_document %}{% if internship.certificate_upload or internship.report_upload %}<br>{% endif %}<a href="{{ internship.supporting_document.url }}" target="_blank">Other</a>{% endif %}
+                            {% if not internship.certificate_upload and not internship.report_upload and not internship.supporting_document %}-{% endif %}
+                        </td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-v"></i> Actions
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <button class="dropdown-item" onclick="viewInternship('{{ internship.id }}')">
+                                            <i class="fas fa-eye text-info me-2"></i> View Details
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <form method="post" action="{% url 'mentor_verify_internship' internship.id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" name="action" value="verified" class="dropdown-item">
+                                                <i class="fas fa-check text-success me-2"></i> Verify
+                                            </button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#requestChangesModal{{ internship.id }}">
+                                            <i class="fas fa-edit text-warning me-2"></i> Request Changes
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <form method="post" action="{% url 'mentor_verify_internship' internship.id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" name="action" value="rejected" class="dropdown-item">
+                                                <i class="fas fa-times text-danger me-2"></i> Reject
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
                         </td>
                     </tr>
+
+                    <div class="modal fade" id="requestChangesModal{{ internship.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header bg-warning text-white">
+                                    <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Request Changes</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="post" action="{% url 'mentor_verify_internship' internship.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="needs_correction">
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><strong>Student:</strong> {{ internship.student.name }} ({{ internship.student.register_number }})</p>
+                                                <p><strong>Internship:</strong> {{ internship.get_internship_type_display }} {{ internship.internship_number }}</p>
+                                                <p><strong>Organisation:</strong> {{ internship.organisation.name }}</p>
+                                                <p><strong>Period:</strong> {{ internship.start_date|date:"d M Y" }} - {{ internship.end_date|date:"d M Y" }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Completion:</strong> {{ internship.get_completion_status_display }}</p>
+                                                <p><strong>Verification:</strong> {{ internship.get_verification_status_display }}</p>
+                                                <p><strong>Submitted:</strong> {{ internship.submission_date|date:"d M Y"|default:"-" }}</p>
+                                                <p><strong>Certificate:</strong> {% if internship.certificate_upload %}<a href="{{ internship.certificate_upload.url }}" target="_blank">View certificate</a>{% else %}-{% endif %}</p>
+                                                <p><strong>Report:</strong> {% if internship.report_upload %}<a href="{{ internship.report_upload.url }}" target="_blank">View report</a>{% else %}-{% endif %}</p>
+                                                <p><strong>Other Document:</strong> {% if internship.supporting_document %}<a href="{{ internship.supporting_document.url }}" target="_blank">View uploaded file</a>{% else %}-{% endif %}</p>
+                                                <p><strong>Overlaps Break:</strong> {% if internship.has_break_overlap %}Yes{% else %}No{% endif %}</p>
+                                            </div>
+                                            <div class="col-12">
+                                                <p><strong>Nature of Work:</strong> {{ internship.nature_of_work|default:"-" }}</p>
+                                                <label class="form-label">What changes are required? *</label>
+                                                <textarea name="remarks" class="form-control" rows="4" required placeholder="Explain the corrections the student must make">{{ internship.remarks }}</textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-warning">Request Changes</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center">No pending verifications</td>
+                        <td colspan="6" class="text-center">No pending verifications</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -60,6 +137,7 @@
                             <p><strong>Student:</strong> ${data.student}</p>
                             <p><strong>Type:</strong> ${data.type}</p>
                             <p><strong>Number:</strong> ${data.number}</p>
+                            <p><strong>Academic Phase:</strong> ${data.academic_phase}</p>
                             <p><strong>Organisation:</strong> ${data.organisation}</p>
                             <p><strong>Semester:</strong> ${data.semester}</p>
                         </div>
@@ -70,10 +148,18 @@
                             <p><strong>Status:</strong> ${data.completion_status}</p>
                             <p><strong>Verification:</strong> ${data.verification_status}</p>
                             <p><strong>Submission Date:</strong> ${data.submission_date}</p>
+                            <p><strong>Certificate:</strong> ${data.certificate ? `<a href="${data.certificate}" target="_blank">View certificate</a>` : '-'}</p>
+                            <p><strong>Report:</strong> ${data.report ? `<a href="${data.report}" target="_blank">View report</a>` : '-'}</p>
+                            <p><strong>Other Document:</strong> ${data.document ? `<a href="${data.document}" target="_blank">View uploaded file</a>` : '-'}</p>
+                            <p><strong>Date Override:</strong> ${data.date_override}</p>
+                            <p><strong>Overlaps Break:</strong> ${data.break_overlap}</p>
+                            ${data.overlapping_breaks.length ? `<p><strong>Break Details:</strong> ${data.overlapping_breaks.join(', ')}</p>` : ''}
                         </div>
                         <div class="col-12">
                             <p><strong>Nature of Work:</strong> ${data.nature_of_work}</p>
                             <p><strong>Remarks:</strong> ${data.remarks}</p>
+                            <p><strong>Added By:</strong> ${data.created_by}</p>
+                            <p><strong>Last Edited By:</strong> ${data.updated_by}</p>
                         </div>
                     </div>
                 `;

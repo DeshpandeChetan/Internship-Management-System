@@ -37,4 +37,40 @@
         {% endif %}
     </div>
 </div>
+
+<div class="card mt-3">
+    <div class="card-header">
+        <h5 class="mb-0">Mentor History</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Mentor</th>
+                        <th>Effective From</th>
+                        <th>Effective To</th>
+                        <th>Level</th>
+                        <th>Semester</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in mentor_history %}
+                    <tr>
+                        <td>{{ item.faculty_mentor.user.get_full_name|default:item.faculty_mentor.user.email }}</td>
+                        <td>{{ item.effective_from|date:"d M Y" }}</td>
+                        <td>{{ item.effective_to|date:"d M Y"|default:"Current" }}</td>
+                        <td>{{ item.get_assignment_level_display }}</td>
+                        <td>{{ item.related_semester|default:"-" }}</td>
+                        <td>{% if item.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Past</span>{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center">No mentor history found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

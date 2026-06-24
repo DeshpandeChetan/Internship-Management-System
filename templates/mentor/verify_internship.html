@@ -13,6 +13,7 @@
                 <p><strong>Student:</strong> {{ internship.student.name }}</p>
                 <p><strong>Internship:</strong> {{ internship.internship_number }}</p>
                 <p><strong>Type:</strong> {{ internship.get_internship_type_display }}</p>
+                <p><strong>Academic Phase:</strong> {{ internship.academic_phase|default:"-" }}</p>
                 <p><strong>Organisation:</strong> {{ internship.organisation.name }}</p>
             </div>
             <div class="col-md-6">
@@ -20,6 +21,13 @@
                 <p><strong>End Date:</strong> {{ internship.end_date|date:"d M Y" }}</p>
                 <p><strong>Duration:</strong> {{ internship.duration }} days</p>
                 <p><strong>Mode:</strong> {{ internship.get_mode_display }}</p>
+                <p><strong>Submitted:</strong> {{ internship.submission_date|date:"d M Y"|default:"-" }}</p>
+                <p><strong>Added By:</strong> {{ internship.created_by.get_full_name|default:internship.created_by.email|default:"-" }}</p>
+                <p><strong>Last Edited By:</strong> {{ internship.updated_by.get_full_name|default:internship.updated_by.email|default:"-" }}</p>
+                <p><strong>Certificate:</strong> {% if internship.certificate_upload %}<a href="{{ internship.certificate_upload.url }}" target="_blank">View certificate</a>{% else %}-{% endif %}</p>
+                <p><strong>Report:</strong> {% if internship.report_upload %}<a href="{{ internship.report_upload.url }}" target="_blank">View report</a>{% else %}-{% endif %}</p>
+                <p><strong>Other Document:</strong> {% if internship.supporting_document %}<a href="{{ internship.supporting_document.url }}" target="_blank">View uploaded file</a>{% else %}-{% endif %}</p>
+                <p><strong>Overlaps Break:</strong> {% if internship.has_break_overlap %}Yes{% else %}No{% endif %}</p>
             </div>
         </div>
         <div class="mt-3">
@@ -29,11 +37,21 @@
         <div class="mt-3">
             <form method="post">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-success">
-                    <i class="fas fa-check"></i> Verify & Approve
+                <div class="mb-3">
+                    <label class="form-label">Faculty Remarks</label>
+                    <textarea name="remarks" class="form-control" rows="3" placeholder="Add verification remarks or correction notes">{{ internship.remarks }}</textarea>
+                </div>
+                <button type="submit" name="action" value="verified" class="btn btn-success">
+                    <i class="fas fa-check"></i> Verified
+                </button>
+                <button type="submit" name="action" value="needs_correction" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Needs Correction
+                </button>
+                <button type="submit" name="action" value="rejected" class="btn btn-danger">
+                    <i class="fas fa-times"></i> Rejected
                 </button>
                 <a href="{% url 'mentor_pending_verification' %}" class="btn btn-secondary">
-                    <i class="fas fa-times"></i> Cancel
+                    Cancel
                 </a>
             </form>
         </div>

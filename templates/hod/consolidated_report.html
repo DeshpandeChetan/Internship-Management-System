@@ -45,10 +45,10 @@
             </table>
         </div>
         <div class="mt-3">
-            <button class="btn btn-success" onclick="window.location.href='{% url 'export_report' 'consolidated' %}'">
+            <button class="btn btn-success" onclick="window.location.href='{% url 'report_export' 'consolidated' %}'">
                 <i class="fas fa-file-excel"></i> Export to Excel
             </button>
-            <button class="btn btn-danger" onclick="window.location.href='{% url 'export_report' 'consolidated_pdf' %}'">
+            <button class="btn btn-danger" onclick="window.location.href='{% url 'report_export' 'consolidated' %}?format=pdf'">
                 <i class="fas fa-file-pdf"></i> Export to PDF
             </button>
         </div>

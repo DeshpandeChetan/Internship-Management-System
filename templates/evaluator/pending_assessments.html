@@ -1,0 +1,67 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}Pending Assessments{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Verified Internships Ready for Assessment</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="pendingAssessmentsTable">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Internship</th>
+                        <th>Organisation</th>
+                        <th>Period</th>
+                        <th>Existing Marks</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for internship in internships %}
+                    <tr>
+                        <td>{{ internship.student.register_number }}<br><small>{{ internship.student.name }}</small></td>
+                        <td>{{ internship.get_internship_type_display }} {{ internship.internship_number }}</td>
+                        <td>{{ internship.organisation.name }}</td>
+                        <td>{{ internship.start_date|date:"d M Y" }} - {{ internship.end_date|date:"d M Y" }}</td>
+                        <td>{{ internship.assessment_marks.count }}</td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Actions
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'evaluator_enter_marks' internship.id %}">
+                                            <i class="fas fa-pen me-2"></i>Enter Marks
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'evaluator_history' %}">
+                                            <i class="fas fa-history me-2"></i>Assessment History
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center">No verified internships ready for assessment</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#pendingAssessmentsTable').DataTable();
+});
+</script>
+{% endblock %}

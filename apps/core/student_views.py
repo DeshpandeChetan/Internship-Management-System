@@ -2,9 +2,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
-from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks, Organisation
+from django.utils import timezone
+from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks, Organisation, BreakRecord
 from .decorators import student_required
-from .forms import InternshipForm
+from .forms import InternshipForm, BreakForm
+from apps.utils.calculations import calculate_student_consolidated_marks
 
 
 def get_logged_in_student(request):
@@ -45,6 +47,14 @@ def require_logged_in_student(request):
 
     messages.error(request, 'Student profile not found. Please contact administrator.')
     return None
+
+
+def student_internship_form(*args, student=None, **kwargs):
+    form = InternshipForm(*args, student=student, **kwargs)
+    form.fields.pop('verification_status', None)
+    form.fields.pop('date_override_approved', None)
+    form.fields.pop('date_override_reason', None)
+    return form
 
 
 @student_required
@@ -94,18 +104,21 @@ def internship_add(request):
         return redirect('profile')
 
     if request.method == 'POST':
-        form = InternshipForm(request.POST, request.FILES)
+        form = student_internship_form(request.POST, request.FILES, student=student)
         if form.is_valid():
             internship = form.save(commit=False)
             internship.student = student
             internship.created_by = request.user
-            internship.verification_status = 'draft'
+            internship.updated_by = request.user
+            internship.verification_status = 'submitted'
+            internship.submission_date = internship.submission_date or timezone.now().date()
             internship.save()
-            messages.success(request, 'Internship record added successfully!')
+            messages.success(request, 'Internship record submitted for faculty verification!')
             return redirect('my_internships')
-    else:
-        form = InternshipForm()
-    return render(request, 'student/internship_form.html', {'student': student, 'form': form, 'active_tab': 'my_internships'})
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(request, f'{field}: {error}')
+    return redirect('my_internships')
 
 @student_required
 def internship_detail(request, pk):
@@ -119,6 +132,7 @@ def internship_detail(request, pk):
         'organisation': internship.organisation.name,
         'type': internship.get_internship_type_display(),
         'number': internship.internship_number,
+        'academic_phase': internship.academic_phase or '-',
         'semester': internship.related_semester or '-',
         'period': f"{internship.start_date.strftime('%d %b %Y')} - {internship.end_date.strftime('%d %b %Y')}",
         'duration': f'{internship.duration} days' if internship.duration is not None else '-',
@@ -126,8 +140,18 @@ def internship_detail(request, pk):
         'completion_status': internship.get_completion_status_display(),
         'verification_status': internship.get_verification_status_display(),
         'submission_date': internship.submission_date.strftime('%d %b %Y') if internship.submission_date else '-',
+        'document': internship.supporting_document.url if internship.supporting_document else '',
+        'certificate': internship.certificate_upload.url if internship.certificate_upload else '',
+        'report': internship.report_upload.url if internship.report_upload else '',
+        'break_overlap': 'Yes' if internship.has_break_overlap else 'No',
+        'overlapping_breaks': [
+            f"{break_record.get_break_type_display()} ({break_record.start_date.strftime('%d %b %Y')} - {break_record.end_date.strftime('%d %b %Y')})"
+            for break_record in internship.overlapping_breaks
+        ],
         'nature_of_work': internship.nature_of_work or '-',
         'remarks': internship.remarks or '-',
+        'created_by': internship.created_by.get_full_name() or internship.created_by.email if internship.created_by else '-',
+        'updated_by': internship.updated_by.get_full_name() or internship.updated_by.email if internship.updated_by else '-',
     })
 
 
@@ -138,18 +162,28 @@ def internship_edit(request, pk):
     if not student:
         return redirect('profile')
 
-    internship = get_object_or_404(InternshipRecord, pk=pk, student=student)
+    internship = get_object_or_404(
+        InternshipRecord,
+        pk=pk,
+        student=student,
+        verification_status__in=['draft', 'needs_correction', 'rejected']
+    )
     if request.method == 'POST':
-        form = InternshipForm(request.POST, request.FILES, instance=internship)
+        form = student_internship_form(request.POST, request.FILES, instance=internship, student=student)
         if form.is_valid():
             internship = form.save(commit=False)
-            internship.verification_status = 'draft'
+            internship.verification_status = 'submitted'
+            internship.verified_by = None
+            internship.verified_at = None
+            internship.updated_by = request.user
+            internship.submission_date = internship.submission_date or timezone.now().date()
             internship.save()
-            messages.success(request, 'Internship updated successfully!')
+            messages.success(request, 'Internship updated and submitted for faculty verification!')
             return redirect('my_internships')
-    else:
-        form = InternshipForm(instance=internship)
-    return render(request, 'student/internship_form.html', {'student': student, 'form': form, 'active_tab': 'my_internships'})
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(request, f'{field}: {error}')
+    return redirect('my_internships')
 
 @student_required
 def internship_delete(request, pk):
@@ -195,7 +229,13 @@ def my_mentor(request):
         student=student, 
         is_active=True
     ).first()
-    return render(request, 'student/mentor.html', {'student': student, 'assignment': assignment, 'active_tab': 'my_mentor'})
+    mentor_history = MentorAssignment.objects.filter(student=student).select_related('faculty_mentor__user').order_by('-effective_from')
+    return render(request, 'student/mentor.html', {
+        'student': student,
+        'assignment': assignment,
+        'mentor_history': mentor_history,
+        'active_tab': 'my_mentor'
+    })
 
 @student_required
 def my_marks(request):
@@ -204,10 +244,80 @@ def my_marks(request):
     if not student:
         return redirect('profile')
 
-    marks = AssessmentMarks.objects.filter(
-        internship_record__student=student
-    ).select_related('internship_record', 'assessment_component')
-    return render(request, 'student/marks.html', {'student': student, 'marks': marks, 'active_tab': 'my_marks'})
+    internships = InternshipRecord.objects.filter(student=student).select_related('organisation').order_by('internship_number')
+    marks_data = []
+    for internship in internships:
+        viva_marks = AssessmentMarks.objects.filter(
+            internship_record=internship,
+            assessment_component__assessment_type='viva',
+            status__in=['approved', 'locked']
+        ).first()
+        intermediate_marks = AssessmentMarks.objects.filter(
+            internship_record=internship,
+            assessment_component__assessment_type='intermediate',
+            status__in=['approved', 'locked']
+        ).order_by('-assessment_date', '-created_on')
+        assessments = AssessmentMarks.objects.filter(
+            internship_record=internship,
+            status__in=['approved', 'locked']
+        ).select_related('assessment_component', 'evaluator').order_by('assessment_date', 'created_on')
+        marks_data.append({
+            'internship': internship,
+            'viva_marks': viva_marks.marks_awarded if viva_marks else None,
+            'intermediate_marks': ', '.join(str(mark.marks_awarded) for mark in intermediate_marks) or None,
+            'assessments': assessments,
+        })
+
+    return render(request, 'student/marks.html', {
+        'student': student,
+        'marks_data': marks_data,
+        'consolidated_data': calculate_student_consolidated_marks(student),
+        'active_tab': 'my_marks',
+    })
+
+
+@student_required
+def my_breaks(request):
+    """View student's break/gap records."""
+    student = require_logged_in_student(request)
+    if not student:
+        return redirect('profile')
+
+    breaks = BreakRecord.objects.filter(student=student).select_related('approved_by').order_by('-start_date')
+    return render(request, 'student/breaks.html', {
+        'student': student,
+        'breaks': breaks,
+        'active_tab': 'student_breaks',
+    })
+
+
+@student_required
+def break_add(request):
+    """Allow students to submit their own break/gap record."""
+    student = require_logged_in_student(request)
+    if not student:
+        return redirect('profile')
+
+    instance = BreakRecord(student=student)
+    if request.method == 'POST':
+        form = BreakForm(request.POST, request.FILES, instance=instance)
+        form.fields.pop('approved_by', None)
+        if form.is_valid():
+            break_record = form.save(commit=False)
+            break_record.student = student
+            break_record.approved_by = None
+            break_record.save()
+            messages.success(request, 'Break record submitted successfully!')
+            return redirect('student_breaks')
+    else:
+        form = BreakForm(instance=instance)
+        form.fields.pop('approved_by', None)
+
+    return render(request, 'student/add_break.html', {
+        'student': student,
+        'form': form,
+        'active_tab': 'student_breaks',
+    })
 
 @student_required
 def my_achievements(request):

@@ -1,0 +1,50 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}{% if marks %}Edit Marks{% else %}Enter Marks{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">{{ internship.student.register_number }} - {{ internship.student.name }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <p><strong>Internship:</strong> {{ internship.get_internship_type_display }} {{ internship.internship_number }}</p>
+                <p><strong>Organisation:</strong> {{ internship.organisation.name }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Period:</strong> {{ internship.start_date|date:"d M Y" }} - {{ internship.end_date|date:"d M Y" }}</p>
+                <p><strong>Verification:</strong> {{ internship.get_verification_status_display }}</p>
+            </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% for field in form %}
+                {% if field.is_hidden %}
+                    {{ field }}
+                {% else %}
+                <div class="mb-3">
+                    <label class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endfor %}
+            {% if marks %}
+            <div class="mb-3">
+                <label class="form-label">Edit Reason</label>
+                <textarea name="edit_reason" class="form-control" rows="2" placeholder="Reason for updating this marks entry"></textarea>
+            </div>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Save Marks
+            </button>
+            <a href="{% if marks %}{% url 'evaluator_history' %}{% else %}{% url 'evaluator_pending_assessments' %}{% endif %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

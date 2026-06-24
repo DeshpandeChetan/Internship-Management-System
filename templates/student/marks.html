@@ -10,15 +10,32 @@
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
                     <thead>
-                        <tr><th>Internship</th><th>Viva Marks</th><th>Intermediate Marks</th></tr>
+                        <tr>
+                            <th>Internship</th>
+                            <th>Assessment</th>
+                            <th>Marks</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Remarks</th>
+                        </tr>
                     </thead>
                     <tbody>
                         {% for item in marks_data %}
+                            {% for mark in item.assessments %}
                             <tr>
                                 <td>{{ item.internship.organisation.name }} ({{ item.internship.get_internship_type_display }})</td>
-                                <td>{{ item.viva_marks|default:'-' }}</td>
-                                <td>{{ item.intermediate_marks|default:'-' }}</td>
+                                <td>{{ mark.assessment_name|default:mark.assessment_component.name }}</td>
+                                <td>{{ mark.marks_awarded }}/{{ mark.maximum_marks }}</td>
+                                <td>{{ mark.assessment_date|date:"d M Y"|default:"-" }}</td>
+                                <td>{{ mark.get_status_display }}</td>
+                                <td>{{ mark.remarks|default:"-" }}</td>
                             </tr>
+                            {% empty %}
+                            <tr>
+                                <td>{{ item.internship.organisation.name }} ({{ item.internship.get_internship_type_display }})</td>
+                                <td colspan="5" class="text-muted">No approved marks published yet</td>
+                            </tr>
+                            {% endfor %}
                         {% endfor %}
                     </tbody>
                 </table>

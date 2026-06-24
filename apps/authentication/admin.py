@@ -7,7 +7,7 @@ class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     verbose_name_plural = 'Profile'
-    fields = ['role', 'phone_number', 'is_active', 'is_approved']
+    fields = ['role', 'department', 'phone_number', 'is_active', 'is_approved']
     readonly_fields = ['is_approved']
 
 class CustomUserAdmin(UserAdmin):
@@ -27,9 +27,9 @@ admin.site.register(User, CustomUserAdmin)
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'role', 'phone_number', 'is_active', 'is_approved']
-    list_filter = ['role', 'is_active', 'is_approved']
+    list_display = ['user', 'role', 'department', 'phone_number', 'is_active', 'is_approved']
+    list_filter = ['role', 'department', 'is_active', 'is_approved']
     search_fields = ['user__email', 'user__first_name', 'user__last_name']
     list_editable = ['role', 'is_active', 'is_approved']
-    fields = ['user', 'role', 'phone_number', 'is_active', 'is_approved']
+    fields = ['user', 'role', 'department', 'phone_number', 'is_active', 'is_approved']
     readonly_fields = ['user']

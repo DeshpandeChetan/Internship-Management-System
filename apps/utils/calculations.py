@@ -1,14 +1,21 @@
 # apps/utils/calculations.py
 
-from django.db.models import Avg, Sum
+from decimal import Decimal
+
+from django.db.models import Avg
 
 from apps.core.models import AssessmentConfiguration
+
+FINAL_STATUSES = ['approved', 'locked']
 
 
 def calculate_internship_score(internship):
     """Calculate score for a single internship"""
-    viva_marks = internship.assessment_marks.filter(assessment_type='viva').first()
-    if not viva_marks or viva_marks.status != 'approved':
+    viva_marks = internship.assessment_marks.filter(
+        assessment_component__assessment_type='viva',
+        status__in=FINAL_STATUSES
+    ).order_by('-assessment_date', '-created_on').first()
+    if not viva_marks:
         return None
     
     return float(viva_marks.marks_awarded)
@@ -16,7 +23,7 @@ def calculate_internship_score(internship):
 
 def calculate_student_average(student):
     """Calculate average of all regular internships for a student"""
-    regular_internships = student.internship_records.filter(
+    regular_internships = student.internships.filter(
         internship_type='regular',
         completion_status='completed'
     )
@@ -25,7 +32,10 @@ def calculate_student_average(student):
     count = 0
     
     for internship in regular_internships:
-        viva_marks = internship.assessment_marks.filter(assessment_type='viva', status='approved').first()
+        viva_marks = internship.assessment_marks.filter(
+            assessment_component__assessment_type='viva',
+            status__in=FINAL_STATUSES
+        ).order_by('-assessment_date', '-created_on').first()
         if viva_marks:
             total_marks += float(viva_marks.marks_awarded)
             count += 1
@@ -35,9 +45,38 @@ def calculate_student_average(student):
     return 0
 
 
+def get_regular_viva_scores(student):
+    regular_internships = student.internships.filter(
+        internship_type='regular',
+        completion_status='completed'
+    )
+    scores = []
+    for internship in regular_internships:
+        viva_marks = internship.assessment_marks.filter(
+            assessment_component__assessment_type='viva',
+            status__in=FINAL_STATUSES
+        ).order_by('-assessment_date', '-created_on').first()
+        if viva_marks:
+            scores.append(float(viva_marks.marks_awarded))
+    return scores
+
+
+def get_assessment_viva_score(student):
+    assessment_internship = student.internships.filter(
+        internship_type='assessment'
+    ).first()
+    if not assessment_internship:
+        return None
+    viva = assessment_internship.assessment_marks.filter(
+        assessment_component__assessment_type='viva',
+        status__in=FINAL_STATUSES
+    ).order_by('-assessment_date', '-created_on').first()
+    return float(viva.marks_awarded) if viva else None
+
+
 def calculate_weighted_average(student, config):
     """Calculate weighted average including intermediate marks"""
-    regular_internships = student.internship_records.filter(
+    regular_internships = student.internships.filter(
         internship_type='regular',
         completion_status='completed'
     )
@@ -46,14 +85,17 @@ def calculate_weighted_average(student, config):
     count = 0
     
     for internship in regular_internships:
-        viva = internship.assessment_marks.filter(assessment_type='viva', status='approved').first()
+        viva = internship.assessment_marks.filter(
+            assessment_component__assessment_type='viva',
+            status__in=FINAL_STATUSES
+        ).order_by('-assessment_date', '-created_on').first()
         if not viva:
             continue
         
         if config.include_intermediate_marks:
             intermediate_marks = internship.assessment_marks.filter(
-                assessment_type='intermediate',
-                status='approved'
+                assessment_component__assessment_type='intermediate',
+                status__in=FINAL_STATUSES
             )
             if intermediate_marks.exists():
                 avg_intermediate = intermediate_marks.aggregate(Avg('marks_awarded'))['marks_awarded__avg']
@@ -76,14 +118,17 @@ def calculate_weighted_average(student, config):
 
 def calculate_best_n_average(student, config):
     """Calculate average of best N internships"""
-    regular_internships = student.internship_records.filter(
+    regular_internships = student.internships.filter(
         internship_type='regular',
         completion_status='completed'
     )
     
     marks_list = []
     for internship in regular_internships:
-        viva = internship.assessment_marks.filter(assessment_type='viva', status='approved').first()
+        viva = internship.assessment_marks.filter(
+            assessment_component__assessment_type='viva',
+            status__in=FINAL_STATUSES
+        ).order_by('-assessment_date', '-created_on').first()
         if viva:
             marks_list.append(float(viva.marks_awarded))
     
@@ -111,15 +156,7 @@ def calculate_student_consolidated_marks(student):
     if not config:
         # Default calculation
         regular_average = calculate_student_average(student)
-        assessment_internship = student.internship_records.filter(
-            internship_type='assessment'
-        ).first()
-        
-        assessment_score = None
-        if assessment_internship:
-            viva = assessment_internship.assessment_marks.filter(assessment_type='viva', status='approved').first()
-            if viva:
-                assessment_score = float(viva.marks_awarded)
+        assessment_score = get_assessment_viva_score(student)
         
         return {
             'regular_average': round(regular_average, 2),
@@ -143,32 +180,18 @@ def calculate_student_consolidated_marks(student):
         
     elif config.calculation_formula == 'all_with_assessment':
         regular_average = calculate_student_average(student)
-        assessment_internship = student.internship_records.filter(
-            internship_type='assessment'
-        ).first()
-        
-        assessment_score = None
-        if assessment_internship:
-            viva = assessment_internship.assessment_marks.filter(assessment_type='viva', status='approved').first()
-            if viva:
-                assessment_score = float(viva.marks_awarded)
-        
-        if assessment_score:
-            final_score = (regular_average + assessment_score) / 2
+        assessment_score = get_assessment_viva_score(student)
+        all_scores = get_regular_viva_scores(student)
+        if assessment_score is not None:
+            all_scores.append(assessment_score)
+        if all_scores:
+            final_score = sum(all_scores) / len(all_scores)
         else:
             final_score = regular_average
             
     else:  # separate_components
         regular_average = calculate_student_average(student)
-        assessment_internship = student.internship_records.filter(
-            internship_type='assessment'
-        ).first()
-        
-        assessment_score = None
-        if assessment_internship:
-            viva = assessment_internship.assessment_marks.filter(assessment_type='viva', status='approved').first()
-            if viva:
-                assessment_score = float(viva.marks_awarded)
+        assessment_score = get_assessment_viva_score(student)
         
         return {
             'regular_average': round(regular_average, 2),
@@ -179,6 +202,7 @@ def calculate_student_consolidated_marks(student):
     
     return {
         'regular_average': round(regular_average, 2) if 'regular_average' in locals() else 0,
+        'assessment_score': assessment_score if 'assessment_score' in locals() else None,
         'final_score': round(final_score, 2) if 'final_score' in locals() else 0,
         'formula_used': dict(AssessmentConfiguration._meta.get_field('calculation_formula').choices).get(config.calculation_formula)
     }
@@ -186,7 +210,7 @@ def calculate_student_consolidated_marks(student):
 
 def calculate_batch_averages(batch):
     """Calculate averages for all students in a batch"""
-    students = batch.student_set.filter(current_status='active')
+    students = batch.students.filter(status='active')
     results = []
     
     for student in students:

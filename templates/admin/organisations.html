@@ -139,7 +139,7 @@
                 <tr>
                     <td><strong>{{ org.name }}</strong></td>
                     <td>
-                        <span class="badge bg-info">{{ org.get_organisation_type_display }}</span>
+                        <span class="badge bg-info">{{ org.type_display }}</span>
                     </td>
                     <td>{{ org.contact_person|default:"-" }}</td>
                     <td>{{ org.city|default:"-" }}</td>
@@ -202,13 +202,17 @@
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Type *</label>
-                                            <select name="organisation_type" class="form-select" required>
+                                            <select name="organisation_type" class="form-select organisation-type-select" data-other-target="editOrgOther{{ org.id }}" required>
                                                 {% for type_code, type_label in types %}
                                                 <option value="{{ type_code }}" {% if org.organisation_type == type_code %}selected{% endif %}>
                                                     {{ type_label }}
                                                 </option>
                                                 {% endfor %}
                                             </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3 organisation-other-field" id="editOrgOther{{ org.id }}" {% if org.organisation_type != 'other' %}style="display:none;"{% endif %}>
+                                            <label class="form-label">Specific Type *</label>
+                                            <input type="text" name="organisation_type_other" value="{{ org.organisation_type_other }}" class="form-control">
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Contact Person</label>
@@ -346,12 +350,16 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Type *</label>
-                            <select name="organisation_type" class="form-select" required>
+                            <select name="organisation_type" class="form-select organisation-type-select" data-other-target="addOrgOther" required>
                                 <option value="">Select Type</option>
                                 {% for type_code, type_label in types %}
                                 <option value="{{ type_code }}">{{ type_label }}</option>
                                 {% endfor %}
                             </select>
+                        </div>
+                        <div class="col-md-6 mb-3 organisation-other-field" id="addOrgOther" style="display:none;">
+                            <label class="form-label">Specific Type *</label>
+                            <input type="text" name="organisation_type_other" class="form-control" placeholder="Enter organisation type">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Contact Person</label>
@@ -427,6 +435,33 @@ function viewOrganisation(id) {
                         <p><strong>Area of Work:</strong> ${data.area_of_work}</p>
                         <p><strong>Remarks:</strong> ${data.remarks}</p>
                     </div>
+                    <div class="col-12">
+                        <h6>Students Interned Here</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Register No</th>
+                                        <th>Name</th>
+                                        <th>Programme</th>
+                                        <th>Batch</th>
+                                        <th>Period</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.students.length ? data.students.map(student => `
+                                        <tr>
+                                            <td>${student.register_number}</td>
+                                            <td>${student.name}</td>
+                                            <td>${student.programme}</td>
+                                            <td>${student.batch}</td>
+                                            <td>${student.period}</td>
+                                        </tr>
+                                    `).join('') : '<tr><td colspan="5" class="text-center">No students found</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             `;
             new bootstrap.Modal(document.getElementById('viewModal')).show();
@@ -434,6 +469,21 @@ function viewOrganisation(id) {
 }
 
 $(document).ready(function () {
+    function toggleOtherType(select) {
+        const target = document.getElementById(select.dataset.otherTarget);
+        if (!target) return;
+        target.style.display = select.value === 'other' ? '' : 'none';
+        const input = target.querySelector('input');
+        if (input) input.required = select.value === 'other';
+    }
+
+    document.querySelectorAll('.organisation-type-select').forEach(select => {
+        toggleOtherType(select);
+        select.addEventListener('change', function () {
+            toggleOtherType(this);
+        });
+    });
+
     $('#orgTable').DataTable({
         responsive: false,
         autoWidth: true,

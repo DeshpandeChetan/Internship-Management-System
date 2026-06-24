@@ -11,46 +11,60 @@
             </div>
             <div class="card-body">
                 <div class="row g-3">
+                    {% with role=user.profile.role %}
+                    {% if role == 'admin' or role == 'hod' or role == 'student' %}
                     <div class="col-md-4">
                         <div class="card h-100">
                             <div class="card-body text-center">
                                 <i class="fas fa-user-graduate fa-3x text-primary mb-3"></i>
-                                <h6>Student-wise Report</h6>
-                                <p class="text-muted small">Complete internship history of a student</p>
-                                <button class="btn btn-primary btn-sm">Generate</button>
+                                <h6>{% if role == 'student' %}My Student Report{% else %}Student-wise Report{% endif %}</h6>
+                                <p class="text-muted small">{% if role == 'student' %}My degree and internship summary{% else %}Student degree and internship summary{% endif %}</p>
+                                <a href="{% url 'report_export' 'student' %}" class="btn btn-primary btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'student' %}?format=pdf" class="btn btn-outline-primary btn-sm">PDF</a>
                             </div>
                         </div>
                     </div>
+                    {% endif %}
+                    {% if role == 'admin' or role == 'hod' or role == 'faculty_mentor' or role == 'evaluator' or role == 'student' %}
                     <div class="col-md-4">
                         <div class="card h-100">
                             <div class="card-body text-center">
                                 <i class="fas fa-users fa-3x text-success mb-3"></i>
-                                <h6>Batch-wise Report</h6>
-                                <p class="text-muted small">Internship completion for all students</p>
-                                <button class="btn btn-success btn-sm">Generate</button>
+                                <h6>{% if role == 'student' %}My Internship Report{% elif role == 'evaluator' %}My Evaluation Report{% else %}Internship Report{% endif %}</h6>
+                                <p class="text-muted small">{% if role == 'student' %}My internship history and viva marks{% elif role == 'evaluator' %}Marks entered by me{% else %}Internship completion and assessment records{% endif %}</p>
+                                <a href="{% url 'report_export' 'internship' %}" class="btn btn-success btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'internship' %}?format=pdf" class="btn btn-outline-success btn-sm">PDF</a>
                             </div>
                         </div>
                     </div>
+                    {% endif %}
+                    {% if role == 'admin' or role == 'hod' %}
                     <div class="col-md-4">
                         <div class="card h-100">
                             <div class="card-body text-center">
                                 <i class="fas fa-building fa-3x text-info mb-3"></i>
                                 <h6>Organisation-wise Report</h6>
                                 <p class="text-muted small">Students interned with each organisation</p>
-                                <button class="btn btn-info btn-sm">Generate</button>
+                                <a href="{% url 'report_export' 'organisation' %}" class="btn btn-info btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'organisation' %}?format=pdf" class="btn btn-outline-info btn-sm">PDF</a>
                             </div>
                         </div>
                     </div>
+                    {% endif %}
+                    {% if role == 'admin' or role == 'hod' or role == 'faculty_mentor' %}
                     <div class="col-md-4">
                         <div class="card h-100">
                             <div class="card-body text-center">
                                 <i class="fas fa-chalkboard-teacher fa-3x text-warning mb-3"></i>
-                                <h6>Mentor-wise Report</h6>
-                                <p class="text-muted small">Students assigned to each mentor</p>
-                                <button class="btn btn-warning btn-sm">Generate</button>
+                                <h6>{% if role == 'faculty_mentor' %}My Assignment Report{% else %}Mentor-wise Report{% endif %}</h6>
+                                <p class="text-muted small">{% if role == 'faculty_mentor' %}Students assigned to me{% else %}Faculty mentor assignment history{% endif %}</p>
+                                <a href="{% url 'report_export' 'mentor' %}" class="btn btn-warning btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'mentor' %}?format=pdf" class="btn btn-outline-warning btn-sm">PDF</a>
                             </div>
                         </div>
                     </div>
+                    {% endif %}
+                    {% if role == 'admin' %}
                     <div class="col-md-4">
                         <div class="card h-100">
                             <div class="card-body text-center">
@@ -61,16 +75,21 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
+                    {% if role == 'admin' or role == 'hod' %}
                     <div class="col-md-4">
                         <div class="card h-100">
                             <div class="card-body text-center">
                                 <i class="fas fa-clock fa-3x text-secondary mb-3"></i>
-                                <h6>Pending Report</h6>
-                                <p class="text-muted small">Pending marks and documents</p>
-                                <button class="btn btn-secondary btn-sm">Generate</button>
+                                <h6>Break / Gap Report</h6>
+                                <p class="text-muted small">Break history and internship overlaps</p>
+                                <a href="{% url 'report_export' 'break' %}" class="btn btn-secondary btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'break' %}?format=pdf" class="btn btn-outline-secondary btn-sm">PDF</a>
                             </div>
                         </div>
                     </div>
+                    {% endif %}
+                    {% endwith %}
                 </div>
             </div>
         </div>

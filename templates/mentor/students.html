@@ -67,6 +67,7 @@
                             <p><strong>Student:</strong> ${data.student}</p>
                             <p><strong>Type:</strong> ${data.type}</p>
                             <p><strong>Number:</strong> ${data.number}</p>
+                            <p><strong>Academic Phase:</strong> ${data.academic_phase}</p>
                             <p><strong>Organisation:</strong> ${data.organisation}</p>
                             <p><strong>Semester:</strong> ${data.semester}</p>
                         </div>
@@ -77,10 +78,17 @@
                             <p><strong>Status:</strong> ${data.completion_status}</p>
                             <p><strong>Verification:</strong> ${data.verification_status}</p>
                             <p><strong>Submission Date:</strong> ${data.submission_date}</p>
+                            <p><strong>Certificate:</strong> ${data.certificate ? `<a href="${data.certificate}" target="_blank">View certificate</a>` : '-'}</p>
+                            <p><strong>Report:</strong> ${data.report ? `<a href="${data.report}" target="_blank">View report</a>` : '-'}</p>
+                            <p><strong>Other Document:</strong> ${data.document ? `<a href="${data.document}" target="_blank">View uploaded file</a>` : '-'}</p>
+                            <p><strong>Overlaps Break:</strong> ${data.break_overlap}</p>
                         </div>
                         <div class="col-12">
                             <p><strong>Nature of Work:</strong> ${data.nature_of_work}</p>
                             <p><strong>Remarks:</strong> ${data.remarks}</p>
+                            <p><strong>Added By:</strong> ${data.created_by}</p>
+                            <p><strong>Last Edited By:</strong> ${data.updated_by}</p>
+                            <p><strong>Verified By:</strong> ${data.verified_by}</p>
                         </div>
                     </div>
                 `;

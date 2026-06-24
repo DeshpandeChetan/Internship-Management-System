@@ -191,7 +191,6 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         # Role-based redirect
         role_redirects = {
             'admin': 'admin_dashboard',
-            'dept_admin': 'admin_dashboard',
             'faculty_mentor': 'mentor_dashboard',
             'evaluator': 'evaluator_dashboard',
             'hod': 'hod_dashboard',

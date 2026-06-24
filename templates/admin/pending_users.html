@@ -23,16 +23,16 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for user in pending_users %}
+                    {% for profile in pending_users %}
                     <tr>
-                        <td>{{ user.email }}</td>
-                        <td>{{ user.get_full_name|default:'-' }}</td>
-                        <td>{{ user.date_joined|date:"d M Y H:i" }}</td>
+                        <td>{{ profile.user.email }}</td>
+                        <td>{{ profile.user.get_full_name|default:'-' }}</td>
+                        <td>{{ profile.user.date_joined|date:"d M Y H:i" }}</td>
                         <td>
-                            <a href="{% url 'admin_approve_user' user.id %}" class="btn btn-sm btn-success">
+                            <a href="{% url 'admin_approve_user' profile.user.id %}" class="btn btn-sm btn-success">
                                 <i class="fas fa-check me-1"></i>Approve
                             </a>
-                            <a href="{% url 'admin_reject_user' user.id %}" class="btn btn-sm btn-danger" 
+                            <a href="{% url 'admin_reject_user' profile.user.id %}" class="btn btn-sm btn-danger" 
                                onclick="return confirm('Are you sure you want to reject this user?')">
                                 <i class="fas fa-times me-1"></i>Reject
                             </a>

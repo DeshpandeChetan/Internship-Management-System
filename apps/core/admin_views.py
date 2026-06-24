@@ -58,14 +58,15 @@ from django.contrib.auth.models import User
 from apps.authentication.models import UserProfile
 
 from .models import (
-    Programme, Batch, Student, Organisation, 
+    Department, Programme, Batch, Student, Organisation, 
     InternshipRecord, BreakRecord,
     MentorAssignment, AssessmentComponent, AssessmentMarks, ConsolidatedScore
 )
 from .forms import (
     UserForm, StudentForm, OrganisationForm, InternshipForm, 
     BreakForm, MentorAssignmentForm, AssessmentMarksForm,
-    AssessmentComponentForm, ProgrammeForm, BatchForm, ProfileForm
+    AssessmentComponentForm, ProgrammeForm, BatchForm, ProfileForm, DepartmentForm,
+    ADMIN_MANAGED_ROLE_CHOICES
 )
 from .decorators import admin_required
 
@@ -110,8 +111,8 @@ def admin_dashboard(request):
 @login_required
 @user_passes_test(is_admin)
 def user_list(request):
-    """Manage system users - list all users"""
-    users = UserProfile.objects.all().select_related('user')
+    """Manage non-student system users."""
+    users = UserProfile.objects.exclude(role='student').select_related('user', 'department')
     
     # Filters
     role_filter = request.GET.get('role')
@@ -134,7 +135,8 @@ def user_list(request):
     context = {
         'active_tab': 'admin_users',
         'users': page_obj,
-        'roles': UserProfile.ROLE_CHOICES,
+        'roles': ADMIN_MANAGED_ROLE_CHOICES,
+        'departments': Department.objects.filter(is_active=True),
         'total_count': users.count(),
         'filter_values': {
             'role': role_filter,
@@ -149,6 +151,9 @@ def user_list(request):
 def user_add(request):
     """Add new user"""
     if request.method == 'POST':
+        if request.POST.get('role') == 'student':
+            messages.error(request, 'Students must be added from Student Management.')
+            return redirect('admin_users')
         form = UserForm(request.POST)
         if form.is_valid():
             try:
@@ -171,9 +176,15 @@ def user_add(request):
 def user_edit(request, pk):
     """Edit user details and role"""
     profile = get_object_or_404(UserProfile, pk=pk)
+    if profile.role == 'student':
+        messages.error(request, 'Student details must be edited from Student Management.')
+        return redirect('admin_students')
     user = profile.user
     
     if request.method == 'POST':
+        if request.POST.get('role') == 'student':
+            messages.error(request, 'User Management cannot convert accounts into student records. Use Student Management.')
+            return redirect('admin_users')
         form = UserForm(request.POST, instance=user)
         if form.is_valid():
             try:
@@ -201,6 +212,9 @@ def user_edit(request, pk):
 def user_toggle(request, pk):
     """Activate/deactivate user"""
     profile = get_object_or_404(UserProfile, pk=pk)
+    if profile.role == 'student':
+        messages.error(request, 'Student account status must be handled from Student Management.')
+        return redirect('admin_students')
     profile.is_active = not profile.is_active
     profile.save()
     status = "activated" if profile.is_active else "deactivated"
@@ -213,6 +227,9 @@ def user_toggle(request, pk):
 def user_approve(request, pk):
     """Approve a pending user"""
     profile = get_object_or_404(UserProfile, pk=pk)
+    if profile.role == 'student':
+        messages.error(request, 'Student approval/details must be handled from Student Management.')
+        return redirect('admin_students')
     if request.method in ['GET', 'POST']:
         profile.is_approved = True
         profile.save()
@@ -233,6 +250,9 @@ def user_approve(request, pk):
 def user_delete(request, pk):
     """Soft delete user"""
     profile = get_object_or_404(UserProfile, pk=pk)
+    if profile.role == 'student':
+        messages.error(request, 'Student records must be handled from Student Management.')
+        return redirect('admin_students')
     if request.method in ['GET', 'POST']:
         profile.is_active = False
         profile.save()
@@ -282,9 +302,10 @@ def bulk_upload_users(request):
                         is_staff=False
                     )
                     
-                    role = row.get('ROLE', 'student').lower()
-                    if role not in ['admin', 'dept_admin', 'faculty_mentor', 'evaluator', 'hod', 'student']:
-                        role = 'student'
+                    role = row.get('ROLE', '').strip().lower()
+                    allowed_roles = [role_code for role_code, _ in ADMIN_MANAGED_ROLE_CHOICES]
+                    if role not in allowed_roles:
+                        raise ValueError("ROLE must be one of: " + ", ".join(allowed_roles))
                     
                     UserProfile.objects.create(
                         user=user,
@@ -321,7 +342,10 @@ def bulk_upload_users(request):
 @user_passes_test(is_admin)
 def pending_users(request):
     """View and approve pending user registrations (from Google Login)"""
-    pending_users = UserProfile.objects.filter(is_approved=False, is_active=True).select_related('user')
+    pending_users = UserProfile.objects.filter(
+        is_approved=False,
+        is_active=True
+    ).exclude(role='student').select_related('user', 'department')
     
     context = {
         'active_tab': 'admin_pending_users',
@@ -337,9 +361,15 @@ def approve_user(request, user_id):
     """Approve a user and assign role (for Google Login users)"""
     profile = get_object_or_404(UserProfile, user_id=user_id)
     user = profile.user
+    if profile.role == 'student':
+        messages.error(request, 'Student requests must be approved from Student Management.')
+        return redirect('admin_students')
     
     if request.method == 'POST':
         role = request.POST.get('role')
+        if role == 'student':
+            messages.error(request, 'Student requests must be approved from Student Management.')
+            return redirect('admin_students')
         profile.role = role
         profile.is_approved = True
         profile.save()
@@ -353,12 +383,12 @@ def approve_user(request, user_id):
         )
         
         messages.success(request, f'User {user.email} approved as {profile.get_role_display()}')
-        return redirect('admin_pending_users')
+        return redirect('admin_users')
     
     context = {
         'user': user,
         'profile': profile,
-        'role_choices': UserProfile.ROLE_CHOICES,
+        'role_choices': ADMIN_MANAGED_ROLE_CHOICES,
     }
     return render(request, 'admin/approve_user.html', context)
 
@@ -368,12 +398,28 @@ def approve_user(request, user_id):
 def reject_user(request, user_id):
     """Reject a pending user registration"""
     profile = get_object_or_404(UserProfile, user_id=user_id)
+    if profile.role == 'student':
+        messages.error(request, 'Student requests must be rejected from Student Management.')
+        return redirect('admin_students')
     user = profile.user
     
     # Delete user and profile
     user.delete()
     messages.success(request, f'User registration rejected and deleted.')
-    return redirect('admin_pending_users')
+    return redirect('admin_users')
+
+
+@login_required
+@user_passes_test(is_admin)
+def user_bulk_upload_sample(request):
+    """Download sample CSV for non-student user bulk upload."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="user_bulk_upload_sample.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'ROLE'])
+    writer.writerow(['Anita', 'Rao', 'anita.rao@example.com', '9876543210', 'faculty_mentor'])
+    writer.writerow(['Vikram', 'Menon', 'vikram.menon@example.com', '9876543211', 'evaluator'])
+    return response
 
 
 @login_required
@@ -418,7 +464,7 @@ def update_user_role(request, user_id):
 @user_passes_test(is_admin)
 def student_list(request):
     """Manage students - list, add, edit, delete"""
-    students = Student.objects.select_related('programme', 'batch', 'user').all()
+    students = Student.objects.select_related('department', 'programme', 'batch', 'user').all()
     
     # Filters
     programme = request.GET.get('programme')
@@ -447,8 +493,14 @@ def student_list(request):
     context = {
         'active_tab': 'admin_students',
         'students': page_obj,
+        'pending_student_requests': UserProfile.objects.filter(
+            role='student',
+            is_approved=False,
+            user__student_profile__isnull=True,
+        ).select_related('user', 'department').order_by('-created_on'),
         'programmes': Programme.objects.filter(is_active=True),
         'batches': Batch.objects.filter(is_active=True),
+        'departments': Department.objects.filter(is_active=True),
         'status_choices': Student.STATUS_CHOICES,
         'total_count': students.count(),
     }
@@ -474,6 +526,77 @@ def student_add(request):
                     messages.error(request, f'{field}: {error}')
         return redirect('admin_students')
     
+    return redirect('admin_students')
+
+
+@login_required
+@user_passes_test(is_admin)
+def student_request_approve(request, pk):
+    """Approve a pending student login request and create an editable student row."""
+    profile = get_object_or_404(
+        UserProfile.objects.select_related('user'),
+        pk=pk,
+        role='student',
+        is_approved=False,
+    )
+    try:
+        if hasattr(profile.user, 'student_profile'):
+            student = profile.user.student_profile
+        else:
+            base_register_number = f"PENDING-{str(profile.id)[:8].upper()}"
+            register_number = base_register_number
+            counter = 1
+            while Student.objects.filter(register_number=register_number).exists():
+                counter += 1
+                register_number = f"{base_register_number}-{counter}"
+
+            full_name = profile.user.get_full_name().strip()
+            student = Student.objects.create(
+                register_number=register_number,
+                name=full_name or profile.user.email,
+                email=profile.user.email,
+                mobile=profile.phone_number or '',
+                department=profile.department,
+                programme=None,
+                batch=None,
+                degree_start_date=None,
+                status='active',
+                remarks='Created from approved student request. Complete academic details from Student Management.',
+                user=profile.user,
+                created_by=request.user,
+            )
+        profile.role = 'student'
+        profile.department = student.department
+        profile.phone_number = student.mobile or profile.phone_number
+        profile.is_active = True
+        profile.is_approved = True
+        profile.save()
+        send_notification(
+            profile.user,
+            "Student Account Approved",
+            "Your student account has been approved. Academic details will be maintained by the administration.",
+            "success"
+        )
+        messages.success(request, f'Student request approved. {student.name} is now listed in Student Management.')
+    except Exception as e:
+        messages.error(request, f'Error approving student request: {str(e)}')
+    return redirect('admin_students')
+
+
+@login_required
+@user_passes_test(is_admin)
+def student_request_reject(request, pk):
+    """Reject a pending student login request."""
+    profile = get_object_or_404(
+        UserProfile.objects.select_related('user'),
+        pk=pk,
+        role='student',
+        is_approved=False,
+    )
+    email = profile.user.email
+    profile.is_active = False
+    profile.save(update_fields=['is_active', 'updated_on'])
+    messages.success(request, f'Student request {email} rejected. It remains available for approval later.')
     return redirect('admin_students')
 
 
@@ -505,23 +628,58 @@ def student_edit(request, pk):
 @user_passes_test(is_admin)
 def student_detail(request, pk):
     """View complete student profile with all records"""
-    student = get_object_or_404(Student, pk=pk)
-    internships = student.internship_records.all().order_by('internship_number')
+    student = get_object_or_404(Student.objects.select_related('department', 'programme', 'batch'), pk=pk)
+    internships = student.internships.select_related('organisation').all().order_by('internship_number')
     breaks = student.breaks.all().order_by('-start_date')
-    mentors = student.mentor_assignments.all().order_by('-effective_from')
-    
-    # Calculate consolidated marks using utils
+    mentors = student.mentor_assignments.select_related('faculty_mentor__user').all().order_by('-effective_from')
     consolidated_data = calculate_student_consolidated_marks(student)
-    
-    context = {
-        'active_tab': 'admin_students',
-        'student': student,
-        'internships': internships,
-        'breaks': breaks,
-        'mentors': mentors,
+
+    return JsonResponse({
+        'register_number': student.register_number,
+        'name': student.name,
+        'email': student.email,
+        'mobile': student.mobile or '-',
+        'department': student.department.name if student.department else '-',
+        'programme': student.programme.name if student.programme else '-',
+        'batch': student.batch.name if student.batch else '-',
+        'degree_start_date': student.degree_start_date.strftime('%d %b %Y') if student.degree_start_date else '-',
+        'degree_end_date': student.degree_end_date.strftime('%d %b %Y') if student.degree_end_date else '-',
+        'status': student.get_status_display(),
+        'remarks': student.remarks or '-',
+        'current_mentor': next(
+            (
+                assignment.faculty_mentor.user.get_full_name() or assignment.faculty_mentor.user.email
+                for assignment in mentors
+                if assignment.is_active
+            ),
+            '-'
+        ),
+        'mentor_history': [
+            {
+                'mentor': assignment.faculty_mentor.user.get_full_name() or assignment.faculty_mentor.user.email,
+                'effective_from': assignment.effective_from.strftime('%d %b %Y'),
+                'effective_to': assignment.effective_to.strftime('%d %b %Y') if assignment.effective_to else 'Current',
+                'level': assignment.get_assignment_level_display(),
+                'semester': assignment.related_semester or '-',
+                'active': assignment.is_active,
+            }
+            for assignment in mentors
+        ],
+        'internships': [
+            {
+                'number': internship.internship_number,
+                'organisation': internship.organisation.name,
+                'type': internship.get_internship_type_display(),
+                'start_date': internship.start_date.strftime('%d %b %Y'),
+                'end_date': internship.end_date.strftime('%d %b %Y'),
+                'status': internship.get_completion_status_display(),
+                'verification': internship.get_verification_status_display(),
+            }
+            for internship in internships
+        ],
+        'break_count': breaks.count(),
         'consolidated_data': consolidated_data,
-    }
-    return render(request, 'admin/student_detail.html', context)
+    })
 
 
 @login_required
@@ -589,7 +747,7 @@ def student_delete(request, pk):
 def bulk_upload_students(request):
     """Bulk upload students via Excel/CSV"""
     if request.method == 'POST':
-        uploaded_file = request.FILES.get('excel_file')
+        uploaded_file = request.FILES.get('excel_file') or request.FILES.get('csv_file')
         if not uploaded_file:
             messages.error(request, 'Please select a file')
             return redirect('admin_students')
@@ -648,6 +806,24 @@ def bulk_upload_students(request):
     return redirect('admin_students')
 
 
+@login_required
+@user_passes_test(is_admin)
+def student_bulk_upload_sample(request):
+    """Download sample CSV for student bulk upload."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="student_bulk_upload_sample.csv"'
+    writer = csv.writer(response)
+    writer.writerow([
+        'register_number', 'name', 'email', 'mobile',
+        'programme_code', 'batch', 'degree_start_date', 'degree_end_date'
+    ])
+    writer.writerow([
+        'REG001', 'Priya Sharma', 'priya.sharma@example.com', '9876543212',
+        'BA.LLB', '2026 Batch', '2026-07-01', '2031-06-30'
+    ])
+    return response
+
+
 # ============================================
 # ORGANISATION MANAGEMENT
 # ============================================
@@ -668,7 +844,10 @@ def organisation_list(request):
         organisations = organisations.filter(
             Q(name__icontains=search) |
             Q(contact_person__icontains=search) |
-            Q(city__icontains=search)
+            Q(city__icontains=search) |
+            Q(state__icontains=search) |
+            Q(address__icontains=search) |
+            Q(area_of_work__icontains=search)
         )
     
     paginator = Paginator(organisations, 20)
@@ -762,7 +941,7 @@ def organisation_detail(request, pk):
 
     return JsonResponse({
         'name': organisation.name,
-        'type': organisation.get_organisation_type_display(),
+        'type': organisation.type_display,
         'contact_person': organisation.contact_person or '-',
         'designation': organisation.designation or '-',
         'email': organisation.email or '-',
@@ -776,6 +955,16 @@ def organisation_detail(request, pk):
         'remarks': organisation.remarks or '-',
         'status': 'Active' if organisation.is_active else 'Inactive',
         'internships_count': internships_count,
+        'students': [
+            {
+                'register_number': item.student.register_number,
+                'name': item.student.name,
+                'programme': item.student.programme.name if item.student.programme else '-',
+                'batch': item.student.batch.name if item.student.batch else '-',
+                'period': f"{item.start_date.strftime('%d %b %Y')} - {item.end_date.strftime('%d %b %Y')}",
+            }
+            for item in organisation.internships.select_related('student', 'student__programme', 'student__batch').order_by('-start_date')[:50]
+        ],
     })
 
 
@@ -794,6 +983,62 @@ def programme_list(request):
         'programmes': programmes,
     }
     return render(request, 'admin/programmes.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def department_list(request):
+    """Manage departments"""
+    departments = Department.objects.all().order_by('name')
+    return render(request, 'admin/departments.html', {
+        'active_tab': 'admin_departments',
+        'departments': departments,
+    })
+
+
+@login_required
+@user_passes_test(is_admin)
+def department_add(request):
+    """Add department"""
+    if request.method == 'POST':
+        form = DepartmentForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Department added successfully!')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    return redirect('admin_departments')
+
+
+@login_required
+@user_passes_test(is_admin)
+def department_edit(request, pk):
+    """Edit department"""
+    department = get_object_or_404(Department, pk=pk)
+    if request.method == 'POST':
+        form = DepartmentForm(request.POST, instance=department)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Department updated successfully!')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    return redirect('admin_departments')
+
+
+@login_required
+@user_passes_test(is_admin)
+def department_toggle(request, pk):
+    """Activate/deactivate department"""
+    department = get_object_or_404(Department, pk=pk)
+    department.is_active = not department.is_active
+    department.save(update_fields=['is_active', 'updated_on'])
+    status = 'activated' if department.is_active else 'deactivated'
+    messages.success(request, f'Department {status} successfully!')
+    return redirect('admin_departments')
 
 
 @login_required
@@ -1015,12 +1260,16 @@ def internship_list(request):
 @user_passes_test(is_admin)
 def internship_detail(request, pk):
     """Return internship details for modal."""
-    internship = get_object_or_404(InternshipRecord, pk=pk)
+    internship = get_object_or_404(
+        InternshipRecord.objects.select_related('student', 'organisation', 'created_by', 'updated_by', 'verified_by'),
+        pk=pk
+    )
 
     return JsonResponse({
         'student': f'{internship.student.name} ({internship.student.register_number})',
         'type': internship.get_internship_type_display(),
         'number': internship.internship_number,
+        'academic_phase': internship.academic_phase or '-',
         'organisation': internship.organisation.name,
         'semester': internship.related_semester or '-',
         'period': f"{internship.start_date.strftime('%d %b %Y')} - {internship.end_date.strftime('%d %b %Y')}",
@@ -1029,9 +1278,46 @@ def internship_detail(request, pk):
         'completion_status': internship.get_completion_status_display(),
         'verification_status': internship.get_verification_status_display(),
         'submission_date': internship.submission_date.strftime('%d %b %Y') if internship.submission_date else '-',
+        'document': internship.supporting_document.url if internship.supporting_document else '',
+        'certificate': internship.certificate_upload.url if internship.certificate_upload else '',
+        'report': internship.report_upload.url if internship.report_upload else '',
+        'date_override': 'Yes' if internship.date_override_approved else 'No',
+        'date_override_reason': internship.date_override_reason or '-',
+        'break_overlap': 'Yes' if internship.has_break_overlap else 'No',
+        'overlapping_breaks': [
+            f"{break_record.get_break_type_display()} ({break_record.start_date.strftime('%d %b %Y')} - {break_record.end_date.strftime('%d %b %Y')})"
+            for break_record in internship.overlapping_breaks
+        ],
         'nature_of_work': internship.nature_of_work or '-',
         'remarks': internship.remarks or '-',
+        'created_by': internship.created_by.get_full_name() or internship.created_by.email if internship.created_by else '-',
+        'updated_by': internship.updated_by.get_full_name() or internship.updated_by.email if internship.updated_by else '-',
+        'verified_by': internship.verified_by.get_full_name() or internship.verified_by.email if internship.verified_by else '-',
     })
+
+
+@login_required
+@user_passes_test(is_admin)
+def internship_verify(request, pk):
+    """Admin verification action for internship details."""
+    internship = get_object_or_404(InternshipRecord, pk=pk)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action not in ['verified', 'needs_correction', 'rejected']:
+            messages.error(request, 'Please choose a valid verification action.')
+            return redirect('admin_internships')
+        remarks = request.POST.get('remarks', '').strip()
+        if action == 'needs_correction' and not remarks:
+            messages.error(request, 'Please mention what changes are required.')
+            return redirect('admin_internships')
+        internship.verification_status = action
+        internship.verified_by = request.user
+        internship.verified_at = timezone.now()
+        if remarks:
+            internship.remarks = remarks
+        internship.save(update_fields=['verification_status', 'verified_by', 'verified_at', 'remarks', 'updated_on'])
+        messages.success(request, f'Internship marked as {internship.get_verification_status_display()}.')
+    return redirect('admin_internships')
 
 
 # ============================================
@@ -1048,6 +1334,9 @@ def break_list(request):
         'active_tab': 'admin_breaks',
         'breaks': breaks,
         'students': Student.objects.all().order_by('register_number'),
+        'approvers': User.objects.filter(
+            profile__role__in=['admin', 'hod']
+        ).order_by('first_name', 'last_name', 'email'),
     }
     return render(request, 'admin/breaks.html', context)
 
@@ -1057,12 +1346,15 @@ def break_list(request):
 def break_add(request):
     """Add new break"""
     if request.method == 'POST':
-        form = BreakForm(request.POST, request.FILES)
+        student = get_object_or_404(Student, pk=request.POST.get('student'))
+        form = BreakForm(request.POST, request.FILES, instance=BreakRecord(student=student))
         if form.is_valid():
             try:
                 break_record = form.save(commit=False)
-                break_record.student = get_object_or_404(Student, pk=request.POST.get('student'))
                 break_record.save()
+                overlaps = _break_overlapping_internships(break_record)
+                if overlaps:
+                    messages.warning(request, f'Break overlaps with {len(overlaps)} internship period(s).')
                 messages.success(request, 'Break record added successfully!')
                 return redirect('admin_breaks')
             except Exception as e:
@@ -1086,7 +1378,10 @@ def break_edit(request, pk):
         form = BreakForm(request.POST, request.FILES, instance=break_record)
         if form.is_valid():
             try:
-                form.save()
+                break_record = form.save()
+                overlaps = _break_overlapping_internships(break_record)
+                if overlaps:
+                    messages.warning(request, f'Break overlaps with {len(overlaps)} internship period(s).')
                 messages.success(request, 'Break record updated successfully!')
                 return redirect('admin_breaks')
             except Exception as e:
@@ -1114,19 +1409,38 @@ def break_delete(request, pk):
 @user_passes_test(is_admin)
 def break_detail(request, pk):
     """Return break details for modal."""
-    break_record = get_object_or_404(BreakRecord.objects.select_related('student'), pk=pk)
+    break_record = get_object_or_404(BreakRecord.objects.select_related('student', 'approved_by'), pk=pk)
     duration = (break_record.end_date - break_record.start_date).days
+    overlaps = _break_overlapping_internships(break_record)
     return JsonResponse({
         'student': f'{break_record.student.register_number} - {break_record.student.name}',
         'break_type': break_record.get_break_type_display(),
         'start_date': break_record.start_date.strftime('%d %b %Y'),
         'end_date': break_record.end_date.strftime('%d %b %Y'),
         'duration': f'{duration} days',
+        'approved_by': break_record.approved_by.get_full_name() or break_record.approved_by.email if break_record.approved_by else '-',
         'reason': break_record.reason or '-',
         'impact': break_record.impact_on_internship or '',
         'document': break_record.supporting_document.url if break_record.supporting_document else '',
         'remarks': break_record.remarks or '',
+        'overlaps': [
+            {
+                'number': internship.internship_number,
+                'organisation': internship.organisation.name,
+                'period': f"{internship.start_date.strftime('%d %b %Y')} - {internship.end_date.strftime('%d %b %Y')}",
+            }
+            for internship in overlaps
+        ],
     })
+
+
+def _break_overlapping_internships(break_record):
+    return list(
+        break_record.student.internships.select_related('organisation').filter(
+            start_date__lte=break_record.end_date,
+            end_date__gte=break_record.start_date,
+        )
+    )
 
 
 # ============================================
@@ -1346,6 +1660,14 @@ def mentor_assignment_edit(request, pk):
 def mentor_assignment_toggle(request, pk):
     """Toggle assignment active status"""
     assignment = get_object_or_404(MentorAssignment, pk=pk)
+    if not assignment.is_active:
+        conflict = MentorAssignment.objects.filter(
+            student=assignment.student,
+            is_active=True,
+        ).exclude(pk=assignment.pk)
+        if conflict.exists():
+            messages.error(request, 'Cannot activate this assignment because the student already has an active mentor.')
+            return redirect('admin_mentor_assignments')
     assignment.is_active = not assignment.is_active
     assignment.save()
     status = "activated" if assignment.is_active else "deactivated"
@@ -1378,6 +1700,17 @@ def admin_reports(request):
 @user_passes_test(is_admin)
 def consolidated_report(request):
     """Consolidated marks report"""
+    for student in Student.objects.select_related('programme').all():
+        data = calculate_student_consolidated_marks(student)
+        ConsolidatedScore.objects.update_or_create(
+            student=student,
+            calculation_formula=data.get('formula_used', 'Default (Simple Average)'),
+            defaults={
+                'regular_internship_average': data.get('regular_average') or 0,
+                'assessment_internship_score': data.get('assessment_score'),
+                'final_consolidated_score': data.get('final_score') or 0,
+            }
+        )
     scores = ConsolidatedScore.objects.select_related('student').all()
     
     context = {
@@ -1391,15 +1724,123 @@ def consolidated_report(request):
 @user_passes_test(is_admin)
 def export_report(request, report_type):
     """Export report in Excel/PDF format"""
-    # Implementation using utils
+    export_format = request.GET.get('format', 'excel')
     if report_type == 'student':
-        data = []  # Get student data
-        return generate_excel_report(data, 'student_report', 'Students')
+        data = _student_report_rows()
+        headers = ['Register No', 'Name', 'Programme', 'Batch', 'Degree Start', 'Degree End', 'Status', 'Internships', 'Breaks']
+        filename = 'student_report'
     elif report_type == 'internship':
-        data = []  # Get internship data
-        return generate_excel_report(data, 'internship_report', 'Internships')
+        data = _internship_report_rows()
+        headers = ['Register No', 'Student', 'Type', 'Number', 'Organisation', 'Start Date', 'End Date', 'Completion', 'Verification', 'Viva Marks']
+        filename = 'internship_report'
+    elif report_type == 'organisation':
+        data = _organisation_report_rows()
+        headers = ['Organisation', 'Type', 'Location', 'Area of Work', 'Status', 'Student Count', 'Internship Count']
+        filename = 'organisation_report'
+    elif report_type == 'mentor':
+        data = _mentor_report_rows()
+        headers = ['Register No', 'Student', 'Faculty Mentor', 'Effective From', 'Effective To', 'Semester', 'Level', 'Active']
+        filename = 'mentor_assignment_report'
+    elif report_type == 'break':
+        data = _break_report_rows()
+        headers = ['Register No', 'Student', 'Break Type', 'Start Date', 'End Date', 'Approved By', 'Overlapping Internships']
+        filename = 'break_report'
     else:
-        return HttpResponse(f"Exporting {report_type} report...")
+        return HttpResponse(f"Unknown report type: {report_type}", status=400)
+
+    if export_format == 'pdf':
+        table_rows = [[row.get(header, '') for header in headers] for row in data]
+        return generate_pdf_report(f"{report_type.title()} Report", headers, table_rows, filename)
+    return generate_excel_report(data, filename, report_type.title())
+
+
+def _student_report_rows():
+    rows = []
+    for student in Student.objects.select_related('programme', 'batch').prefetch_related('internships', 'breaks').order_by('register_number'):
+        rows.append({
+            'Register No': student.register_number,
+            'Name': student.name,
+            'Programme': student.programme.name if student.programme else '',
+            'Batch': student.batch.name if student.batch else '',
+            'Degree Start': student.degree_start_date or '',
+            'Degree End': student.degree_end_date or '',
+            'Status': student.get_status_display(),
+            'Internships': student.internships.count(),
+            'Breaks': student.breaks.count(),
+        })
+    return rows
+
+
+def _internship_report_rows():
+    rows = []
+    internships = InternshipRecord.objects.select_related('student', 'organisation').prefetch_related('assessment_marks__assessment_component')
+    for internship in internships.order_by('student__register_number', 'internship_number'):
+        viva = internship.assessment_marks.filter(assessment_component__assessment_type='viva').first()
+        rows.append({
+            'Register No': internship.student.register_number,
+            'Student': internship.student.name,
+            'Type': internship.get_internship_type_display(),
+            'Number': internship.internship_number,
+            'Organisation': internship.organisation.name,
+            'Start Date': internship.start_date,
+            'End Date': internship.end_date,
+            'Completion': internship.get_completion_status_display(),
+            'Verification': internship.get_verification_status_display(),
+            'Viva Marks': viva.marks_awarded if viva else 'Pending',
+        })
+    return rows
+
+
+def _organisation_report_rows():
+    rows = []
+    for organisation in Organisation.objects.prefetch_related('internships__student').order_by('name'):
+        students = {internship.student_id for internship in organisation.internships.all()}
+        rows.append({
+            'Organisation': organisation.name,
+            'Type': organisation.type_display,
+            'Location': ', '.join(filter(None, [organisation.city, organisation.state])),
+            'Area of Work': organisation.area_of_work,
+            'Status': 'Active' if organisation.is_active else 'Inactive',
+            'Student Count': len(students),
+            'Internship Count': organisation.internships.count(),
+        })
+    return rows
+
+
+def _break_report_rows():
+    rows = []
+    for break_record in BreakRecord.objects.select_related('student', 'approved_by').order_by('-start_date'):
+        overlaps = _break_overlapping_internships(break_record)
+        rows.append({
+            'Register No': break_record.student.register_number,
+            'Student': break_record.student.name,
+            'Break Type': break_record.get_break_type_display(),
+            'Start Date': break_record.start_date,
+            'End Date': break_record.end_date,
+            'Approved By': break_record.approved_by.get_full_name() or break_record.approved_by.email if break_record.approved_by else '',
+            'Overlapping Internships': len(overlaps),
+        })
+    return rows
+
+
+def _mentor_report_rows():
+    rows = []
+    assignments = MentorAssignment.objects.select_related('student', 'faculty_mentor__user').order_by(
+        'student__register_number', '-effective_from'
+    )
+    for assignment in assignments:
+        mentor_user = assignment.faculty_mentor.user
+        rows.append({
+            'Register No': assignment.student.register_number,
+            'Student': assignment.student.name,
+            'Faculty Mentor': mentor_user.get_full_name() or mentor_user.email,
+            'Effective From': assignment.effective_from,
+            'Effective To': assignment.effective_to or '',
+            'Semester': assignment.related_semester,
+            'Level': assignment.get_assignment_level_display(),
+            'Active': 'Yes' if assignment.is_active else 'No',
+        })
+    return rows
 
 
 

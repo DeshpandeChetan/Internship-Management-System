@@ -29,17 +29,15 @@
                             {% endfor %}
                         </select>
                         <div class="form-text">
-                            <strong>Student:</strong> Can submit internships and view marks<br>
                             <strong>Faculty Mentor:</strong> Can verify student internships and enter mentor marks<br>
                             <strong>Faculty Evaluator:</strong> Can enter viva and intermediate marks<br>
-                            <strong>Department Admin:</strong> Can manage department data and reports<br>
-                            <strong>HoD:</strong> Can review consolidated reports
+                            <strong>HoD/Coordinator:</strong> Can manage department data and reports
                         </div>
                     </div>
                     <button type="submit" class="btn btn-success w-100">
                         <i class="fas fa-check me-2"></i>Approve and Assign Role
                     </button>
-                    <a href="{% url 'admin_pending_users' %}" class="btn btn-outline-secondary w-100 mt-2">Cancel</a>
+                    <a href="{% url 'admin_users' %}" class="btn btn-outline-secondary w-100 mt-2">Cancel</a>
                 </form>
             </div>
         </div>

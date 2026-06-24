@@ -103,6 +103,89 @@
 </div>
 
 <!-- Filters -->
+{% if pending_student_requests %}
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-user-clock me-2"></i>New Student Requests</h5>
+        <span class="badge bg-warning text-dark">{{ pending_student_requests|length }} Request{{ pending_student_requests|length|pluralize }}</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Name</th>
+                        <th>Requested On</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for request_profile in pending_student_requests %}
+                    <tr>
+                        <td>{{ request_profile.user.email }}</td>
+                        <td>{{ request_profile.user.get_full_name|default:"-" }}</td>
+                        <td>{{ request_profile.created_on|date:"d M Y" }}</td>
+                        <td>
+                            {% if request_profile.is_active %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            {% else %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Actions
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'admin_student_request_approve' request_profile.id %}">
+                                            <i class="fas fa-check text-success me-2"></i>Approve as Student
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#rejectStudentRequestModal{{ request_profile.id }}">
+                                            <i class="fas fa-times text-danger me-2"></i>Reject
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% for request_profile in pending_student_requests %}
+<div class="modal fade" id="rejectStudentRequestModal{{ request_profile.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-times me-2"></i>Reject Student Request</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3 d-block"></i>
+                <p class="mb-1 fw-semibold">Reject <strong>{{ request_profile.user.email }}</strong>?</p>
+                <h6 class="text-muted small mb-0">The request will stay in this list and can be approved later.</h6>
+            </div>
+            <div class="modal-footer justify-content-center gap-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'admin_student_request_reject' request_profile.id %}" class="btn btn-danger px-4">
+                    <i class="fas fa-times me-2"></i>Reject
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
 <div class="card mb-3">
     <div class="card-body">
         <form method="get" class="row g-3" id="filterForm">
@@ -157,6 +240,7 @@
                     <th>Reg No</th>
                     <th>Name</th>
                     <th>Email</th> 
+                    <th>Department</th>
                     <th>Programme</th>
                     <th>Batch</th>
                     <th>Status</th>
@@ -166,11 +250,12 @@
             <tbody>
                 {% for student in students %}
                 <tr>
-                    <td><strong>{{ student.register_number }}</strong></td>
+                    <td><strong>{{ student.register_number }}</strong>{% if student.register_number|slice:":8" == "PENDING-" %}<br><small class="text-warning">Update required</small>{% endif %}</td>
                     <td>{{ student.name }}</td>
                     <td>{{ student.email }}</td>
-                    <td>{{ student.programme.code }}</td>
-                    <td>{{ student.batch.name }}</td>
+                    <td>{{ student.department.name|default:"-" }}</td>
+                    <td>{{ student.programme.code|default:"-" }}</td>
+                    <td>{{ student.batch.name|default:"-" }}</td>
                     <td>
                         <span class="badge-status bg-{% if student.status == 'active' %}success{% elif student.status == 'completed' %}info{% elif student.status == 'on_break' %}warning{% else %}danger{% endif %} text-white">
                             {{ student.get_status_display }}
@@ -209,7 +294,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center py-4">
+                    <td colspan="8" class="text-center py-4">
                         <i class="fas fa-user-graduate fa-2x text-muted d-block mb-2"></i>
                         No students found
                     </td>
@@ -250,10 +335,20 @@
                             <input type="text" name="mobile" value="{{ student.mobile }}" class="form-control">
                         </div>
                         <div class="col-md-6 mb-3">
+                            <label class="form-label">Department</label>
+                            <select name="department" class="form-select">
+                                <option value="">Select Department</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}" {% if student.department_id == department.id %}selected{% endif %}>{{ department.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Programme *</label>
-                            <select name="programme" class="form-select" required>
+                            <select name="programme" class="form-select">
+                                <option value="">Select Programme</option>
                                 {% for programme in programmes %}
-                                <option value="{{ programme.id }}" {% if student.programme.id == programme.id %}selected{% endif %}>
+                                <option value="{{ programme.id }}" {% if student.programme_id == programme.id %}selected{% endif %}>
                                     {{ programme.name }}
                                 </option>
                                 {% endfor %}
@@ -261,17 +356,18 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Batch *</label>
-                            <select name="batch" class="form-select" required>
+                            <select name="batch" class="form-select">
+                                <option value="">Select Batch</option>
                                 {% for batch in batches %}
-                                <option value="{{ batch.id }}" {% if student.batch.id == batch.id %}selected{% endif %}>
+                                <option value="{{ batch.id }}" {% if student.batch_id == batch.id %}selected{% endif %}>
                                     {{ batch.name }}
                                 </option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Degree Start Date *</label>
-                            <input type="date" name="degree_start_date" value="{{ student.degree_start_date|date:'Y-m-d' }}" class="form-control" required>
+                            <label class="form-label">Degree Start Date</label>
+                            <input type="date" name="degree_start_date" value="{{ student.degree_start_date|date:'Y-m-d' }}" class="form-control">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Degree End Date</label>
@@ -364,6 +460,15 @@
                             <input type="text" name="mobile" class="form-control">
                         </div>
                         <div class="col-md-6 mb-3">
+                            <label class="form-label">Department</label>
+                            <select name="department" class="form-select">
+                                <option value="">Select Department</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}">{{ department.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Programme *</label>
                             <select name="programme" class="form-select" required>
                                 <option value="">Select Programme</option>
@@ -421,17 +526,17 @@
                 <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Bulk Upload Students</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post" action="#" enctype="multipart/form-data">
+            <form method="post" action="{% url 'admin_bulk_upload_students' %}" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">CSV File</label>
-                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
-                        <small class="text-muted">Required columns: REGISTER_NUMBER, NAME, EMAIL, PROGRAMME, BATCH</small>
+                        <input type="file" name="csv_file" class="form-control" accept=".csv,.xlsx,.xls" required>
+                        <small class="text-muted">Required columns: register_number, name, email, programme_code, batch, degree_start_date, degree_end_date</small>
                     </div>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <a href="#" class="alert-link">Download sample CSV template</a>
+                        <a href="{% url 'admin_bulk_upload_students_sample' %}" class="alert-link">Download sample CSV template</a>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -473,6 +578,7 @@ function viewStudent(id) {
                         <p><strong>Name:</strong> ${data.name}</p>
                         <p><strong>Email:</strong> ${data.email}</p>
                         <p><strong>Mobile:</strong> ${data.mobile}</p>
+                        <p><strong>Department:</strong> ${data.department}</p>
                     </div>
                     <div class="col-md-6">
                         <p><strong>Programme:</strong> ${data.programme}</p>

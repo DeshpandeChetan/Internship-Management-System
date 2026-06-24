@@ -8,10 +8,6 @@
         <h5>Consolidated Marks Report</h5>
     </div>
     <div class="card-body">
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>
-            Consolidated marks report will be displayed here once data is available.
-        </div>
         <div class="table-responsive">
             <table class="table table-hover" id="reportTable">
                 <thead>
@@ -21,16 +17,51 @@
                         <th>Regular Avg</th>
                         <th>Assessment Score</th>
                         <th>Final Score</th>
+                        <th>Formula</th>
                         <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
+                    {% for score in scores %}
                     <tr>
-                        <td colspan="6" class="text-center">No data available</td>
+                        <td>{{ score.student.register_number }}</td>
+                        <td>{{ score.student.name }}</td>
+                        <td>{{ score.regular_internship_average|default:"-" }}</td>
+                        <td>{{ score.assessment_internship_score|default:"-" }}</td>
+                        <td><strong>{{ score.final_consolidated_score|default:"-" }}</strong></td>
+                        <td>{{ score.calculation_formula }}</td>
+                        <td>
+                            {% if score.is_finalized %}
+                            <span class="badge bg-success">Finalized</span>
+                            {% else %}
+                            <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        </td>
                     </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No data available</td>
+                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
+        <div class="mt-3">
+            <a class="btn btn-success" href="{% url 'report_export' 'consolidated' %}">
+                <i class="fas fa-file-excel"></i> Export to Excel
+            </a>
+            <a class="btn btn-danger" href="{% url 'report_export' 'consolidated' %}?format=pdf">
+                <i class="fas fa-file-pdf"></i> Export to PDF
+            </a>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('#reportTable').DataTable();
+    });
+</script>
 {% endblock %}

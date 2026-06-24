@@ -140,6 +140,7 @@
                     <th>Email</th>
                     <th>Name</th>
                     <th>Role</th>
+                    <th>Department</th>
                     <th>Phone</th>
                     <th>Status</th>
                     <th>Approval</th>
@@ -152,10 +153,11 @@
                     <td>{{ profile.user.email }}</td>
                     <td>{{ profile.user.get_full_name|default:"-" }}</td>
                     <td>
-                        <span class="badge bg-{% if profile.role == 'admin' %}danger{% elif profile.role == 'dept_admin' %}warning{% elif profile.role == 'faculty_mentor' %}info{% elif profile.role == 'evaluator' %}primary{% elif profile.role == 'hod' %}secondary{% else %}success{% endif %}">
+                        <span class="badge bg-{% if profile.role == 'admin' %}danger{% elif profile.role == 'faculty_mentor' %}info{% elif profile.role == 'evaluator' %}primary{% elif profile.role == 'hod' %}secondary{% else %}success{% endif %}">
                             {{ profile.get_role_display }}
                         </span>
                     </td>
+                    <td>{{ profile.department.name|default:"-" }}</td>
                     <td>{{ profile.phone_number|default:"-" }}</td>
                     <td>
                         <span class="badge-status bg-{% if profile.is_active %}success{% else %}danger{% endif %} text-white">
@@ -163,14 +165,10 @@
                         </span>
                     </td>
                     <td>
-                        {% if profile.role == 'student' %}
-                            {% if profile.is_approved %}
-                                <span class="badge bg-success">Approved</span>
-                            {% else %}
-                                <span class="badge bg-warning">Pending</span>
-                            {% endif %}
+                        {% if profile.is_approved %}
+                            <span class="badge bg-success">Approved</span>
                         {% else %}
-                            <span class="badge bg-secondary">N/A</span>
+                            <span class="badge bg-warning">Pending</span>
                         {% endif %}
                     </td>
                     <td>
@@ -184,7 +182,7 @@
                                         <i class="fas fa-edit text-primary me-2"></i> Edit
                                     </button>
                                 </li>
-                                {% if profile.role == 'student' and not profile.is_approved %}
+                                {% if not profile.is_approved %}
                                 <li>
                                     <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#approveUserModal{{ profile.id }}">
                                         <i class="fas fa-check text-success me-2"></i> Approve
@@ -242,12 +240,18 @@
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Role</label>
                                             <select name="role" class="form-select">
-                                                <option value="admin" {% if profile.role == 'admin' %}selected{% endif %}>System Admin</option>
-                                                <option value="dept_admin" {% if profile.role == 'dept_admin' %}selected{% endif %}>Department Admin</option>
-                                                <option value="faculty_mentor" {% if profile.role == 'faculty_mentor' %}selected{% endif %}>Faculty Mentor</option>
-                                                <option value="evaluator" {% if profile.role == 'evaluator' %}selected{% endif %}>Faculty Evaluator</option>
-                                                <option value="hod" {% if profile.role == 'hod' %}selected{% endif %}>HoD/Coordinator</option>
-                                                <option value="student" {% if profile.role == 'student' %}selected{% endif %}>Student</option>
+                                                {% for role_code, role_label in roles %}
+                                                <option value="{{ role_code }}" {% if profile.role == role_code %}selected{% endif %}>{{ role_label }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Department</label>
+                                            <select name="department" class="form-select">
+                                                <option value="">Select Department</option>
+                                                {% for department in departments %}
+                                                <option value="{{ department.id }}" {% if profile.department_id == department.id %}selected{% endif %}>{{ department.name }}</option>
+                                                {% endfor %}
                                             </select>
                                         </div>
                                         <div class="col-md-6 mb-3">
@@ -331,7 +335,7 @@
                 </div>
 
                 <!-- Approve User Modal -->
-                {% if profile.role == 'student' and not profile.is_approved %}
+                {% if not profile.is_approved %}
                 <div class="modal fade" id="approveUserModal{{ profile.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
                         <div class="modal-content">
@@ -359,7 +363,7 @@
 
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center py-4">
+                    <td colspan="8" class="text-center py-4">
                         <i class="fas fa-users fa-2x text-muted d-block mb-2"></i>
                         No users found
                     </td>
@@ -401,12 +405,18 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Role *</label>
                             <select name="role" class="form-select" required>
-                                <option value="admin">System Admin</option>
-                                <option value="dept_admin">Department Admin</option>
-                                <option value="faculty_mentor">Faculty Mentor</option>
-                                <option value="evaluator">Faculty Evaluator</option>
-                                <option value="hod">HoD/Coordinator</option>
-                                <option value="student">Student</option>
+                                {% for role_code, role_label in roles %}
+                                <option value="{{ role_code }}">{{ role_label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Department</label>
+                            <select name="department" class="form-select">
+                                <option value="">Select Department</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}">{{ department.name }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -441,11 +451,11 @@
                     <div class="mb-3">
                         <label class="form-label">CSV File</label>
                         <input type="file" name="csv_file" class="form-control" accept=".csv" required>
-                        <small class="text-muted">Required columns: FIRST_NAME, LAST_NAME, EMAIL, PHONE, ROLE</small>
+                        <small class="text-muted">Required columns: FIRST_NAME, LAST_NAME, EMAIL, PHONE, ROLE. Student users must be added from Student Management.</small>
                     </div>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <a href="#" class="alert-link">Download sample CSV template</a>
+                        <a href="{% url 'bulk_upload_users_sample' %}" class="alert-link">Download sample CSV template</a>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -124,7 +124,7 @@ def is_faculty_evaluator(user):
     if not user.is_authenticated:
         return False
     if hasattr(user, 'profile'):
-        return user.profile.role in ['faculty_evaluator', 'hod', 'admin']
+        return user.profile.role in ['evaluator', 'faculty_evaluator', 'hod', 'admin']
     return False
 
 

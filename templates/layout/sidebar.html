@@ -52,6 +52,9 @@
                 <a class="nav-link {% if active_tab == 'admin_students' %}active{% endif %}" href="{% url 'admin_students' %}">
                     <i class="fas fa-user-graduate"></i> Students
                 </a>
+                <a class="nav-link {% if active_tab == 'admin_departments' %}active{% endif %}" href="{% url 'admin_departments' %}">
+                    <i class="fas fa-sitemap"></i> Departments
+                </a>
                 <a class="nav-link {% if active_tab == 'admin_organisations' %}active{% endif %}" href="{% url 'admin_organisations' %}">
                     <i class="fas fa-building"></i> Organisations
                 </a>
@@ -72,6 +75,12 @@
                 </a>
                 <a class="nav-link {% if active_tab == 'admin_assessment_config' %}active{% endif %}" href="{% url 'admin_assessment_config' %}">
                     <i class="fas fa-sliders-h"></i> Assessment Config
+                </a>
+                <a class="nav-link {% if active_tab == 'evaluator_pending_assessments' %}active{% endif %}" href="{% url 'evaluator_pending_assessments' %}">
+                    <i class="fas fa-pen"></i> Marks Entry
+                </a>
+                <a class="nav-link {% if active_tab == 'evaluator_history' %}active{% endif %}" href="{% url 'evaluator_history' %}">
+                    <i class="fas fa-history"></i> Marks History
                 </a>
             </div>
             <div class="nav-group">
@@ -94,8 +103,20 @@
                 <a class="nav-link {% if active_tab == 'hod_students' %}active{% endif %}" href="{% url 'hod_students' %}">
                     <i class="fas fa-user-graduate"></i> Students
                 </a>
+                <a class="nav-link {% if active_tab == 'mentor_assigned_students' %}active{% endif %}" href="{% url 'mentor_assigned_students' %}">
+                    <i class="fas fa-users"></i> My Mentees
+                </a>
+                <a class="nav-link {% if active_tab == 'mentor_all_internships' %}active{% endif %}" href="{% url 'mentor_all_internships' %}">
+                    <i class="fas fa-briefcase"></i> Internships
+                </a>
                 <a class="nav-link {% if active_tab == 'hod_approvals' %}active{% endif %}" href="{% url 'hod_approvals' %}">
                     <i class="fas fa-check-circle"></i> Approvals
+                </a>
+                <a class="nav-link {% if active_tab == 'evaluator_pending_assessments' %}active{% endif %}" href="{% url 'evaluator_pending_assessments' %}">
+                    <i class="fas fa-pen"></i> Marks Entry
+                </a>
+                <a class="nav-link {% if active_tab == 'evaluator_history' %}active{% endif %}" href="{% url 'evaluator_history' %}">
+                    <i class="fas fa-history"></i> Marks History
                 </a>
             </div>
             <div class="nav-group">
@@ -124,6 +145,18 @@
                 <a class="nav-link {% if active_tab == 'mentor_all_internships' %}active{% endif %}" href="{% url 'mentor_all_internships' %}">
                     <i class="fas fa-briefcase"></i> All Internships
                 </a>
+                <a class="nav-link {% if active_tab == 'evaluator_pending_assessments' %}active{% endif %}" href="{% url 'evaluator_pending_assessments' %}">
+                    <i class="fas fa-pen"></i> Marks Entry
+                </a>
+                <a class="nav-link {% if active_tab == 'evaluator_history' %}active{% endif %}" href="{% url 'evaluator_history' %}">
+                    <i class="fas fa-history"></i> Marks History
+                </a>
+            </div>
+            <div class="nav-group">
+                <div class="nav-group-title">Reports</div>
+                <a class="nav-link {% if active_tab == 'mentor_reports' %}active{% endif %}" href="{% url 'report_list' %}">
+                    <i class="fas fa-file-alt"></i> Reports
+                </a>
             </div>
             {% endif %}
 
@@ -140,6 +173,12 @@
                     <i class="fas fa-history"></i> Assessment History
                 </a>
             </div>
+            <div class="nav-group">
+                <div class="nav-group-title">Reports</div>
+                <a class="nav-link {% if active_tab == 'evaluator_reports' %}active{% endif %}" href="{% url 'report_list' %}">
+                    <i class="fas fa-file-alt"></i> Reports
+                </a>
+            </div>
             {% endif %}
 
             <!-- ============================================ -->
@@ -151,11 +190,20 @@
                 <a class="nav-link {% if active_tab == 'my_internships' %}active{% endif %}" href="{% url 'my_internships' %}">
                     <i class="fas fa-briefcase"></i> My Internships
                 </a>
+                <a class="nav-link {% if active_tab == 'student_breaks' %}active{% endif %}" href="{% url 'student_breaks' %}">
+                    <i class="fas fa-pause"></i> My Breaks
+                </a>
                 <a class="nav-link {% if active_tab == 'my_mentor' %}active{% endif %}" href="{% url 'my_mentor' %}">
                     <i class="fas fa-chalkboard-teacher"></i> My Mentor
                 </a>
                 <a class="nav-link {% if active_tab == 'my_marks' %}active{% endif %}" href="{% url 'my_marks' %}">
                     <i class="fas fa-star"></i> My Marks
+                </a>
+            </div>
+            <div class="nav-group">
+                <div class="nav-group-title">Reports</div>
+                <a class="nav-link {% if active_tab == 'student_reports' %}active{% endif %}" href="{% url 'report_list' %}">
+                    <i class="fas fa-file-alt"></i> My Reports
                 </a>
             </div>
             {% endif %}

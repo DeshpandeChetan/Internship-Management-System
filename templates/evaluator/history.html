@@ -1,0 +1,144 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}Assessment History{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Marks Entered by Me</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="historyTable">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Internship</th>
+                        <th>Assessment</th>
+                        <th>Marks</th>
+                        <th>Status</th>
+                        <th>Evaluator</th>
+                        <th>Remarks</th>
+                        <th>Document</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mark in marks %}
+                    <tr>
+                        <td>{{ mark.internship_record.student.register_number }}<br><small>{{ mark.internship_record.student.name }}</small></td>
+                        <td>{{ mark.internship_record.get_internship_type_display }} {{ mark.internship_record.internship_number }}</td>
+                        <td>{{ mark.assessment_name|default:mark.assessment_component.name }}</td>
+                        <td>{{ mark.marks_awarded }}/{{ mark.maximum_marks }}</td>
+                        <td>
+                            {% if mark.status == 'locked' %}
+                                <span class="badge bg-dark">Locked</span>
+                            {% elif mark.status == 'approved' %}
+                                <span class="badge bg-success">Approved</span>
+                            {% elif mark.status == 'submitted' %}
+                                <span class="badge bg-primary">Submitted</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Draft</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ mark.evaluator.get_full_name|default:mark.evaluator.email|default:"-" }}</td>
+                        <td>{{ mark.remarks|default:"-" }}</td>
+                        <td>{% if mark.supporting_document %}<a href="{{ mark.supporting_document.url }}" target="_blank">View</a>{% else %}-{% endif %}</td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Actions
+                                </button>
+                                <ul class="dropdown-menu">
+                                    {% if mark.status != 'locked' %}
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'evaluator_edit_marks' mark.id %}">
+                                            <i class="fas fa-edit me-2"></i>Edit
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                    {% if mark.status == 'approved' %}
+                                    <li>
+                                        <form method="post" action="{% url 'evaluator_lock_marks' mark.id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="dropdown-item">
+                                                <i class="fas fa-lock me-2"></i>Lock
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                    <li>
+                                        <button type="button" class="dropdown-item" onclick="viewMarkHistory('{{ mark.id }}')">
+                                            <i class="fas fa-history me-2"></i>Edit History
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="9" class="text-center">No assessment marks entered yet</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Marks Edit History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="historyModalBody"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#historyTable').DataTable();
+});
+
+function viewMarkHistory(id) {
+    fetch(`/dashboard/evaluator/marks/${id}/history/`)
+        .then(response => response.json())
+        .then(data => {
+            const rows = data.history.map(item => `
+                <tr>
+                    <td>${item.edited_on}</td>
+                    <td>${item.edited_by}</td>
+                    <td>${item.old_values.marks_awarded || '-'} / ${item.old_values.maximum_marks || '-'}</td>
+                    <td>${item.new_values.marks_awarded || '-'} / ${item.new_values.maximum_marks || '-'}</td>
+                    <td>${item.old_values.status || '-'}</td>
+                    <td>${item.new_values.status || '-'}</td>
+                    <td>${item.remarks}</td>
+                </tr>
+            `).join('');
+            document.getElementById('historyModalBody').innerHTML = rows ? `
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Edited By</th>
+                                <th>Old Marks</th>
+                                <th>New Marks</th>
+                                <th>Old Status</th>
+                                <th>New Status</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            ` : '<p class="text-muted mb-0">No edit history available.</p>';
+            new bootstrap.Modal(document.getElementById('historyModal')).show();
+        });
+}
+</script>
+{% endblock %}

@@ -67,18 +67,21 @@ def generate_pdf_report(title, headers, data, filename):
 
 def generate_student_report(student):
     """Generate student-wise internship report data"""
-    internships = student.internship_records.all().order_by('internship_number')
+    internships = student.internships.select_related('organisation').all().order_by('internship_number')
     
     data = []
     for internship in internships:
-        viva_marks = internship.viva_marks
+        viva_marks = internship.assessment_marks.filter(
+            assessment_component__assessment_type='viva',
+            status__in=['approved', 'locked']
+        ).first()
         data.append({
             'Internship Type': internship.get_internship_type_display(),
             'Internship No': internship.internship_number or 'N/A',
             'Organisation': internship.organisation.name,
             'Start Date': internship.start_date,
             'End Date': internship.end_date,
-            'Viva Marks': viva_marks if viva_marks else 'Pending',
+            'Viva Marks': viva_marks.marks_awarded if viva_marks else 'Pending',
             'Status': internship.get_verification_status_display(),
         })
     
@@ -87,7 +90,7 @@ def generate_student_report(student):
 
 def generate_batch_report(batch):
     """Generate batch-wise marks report data"""
-    students = batch.student_set.filter(current_status='active')
+    students = batch.students.filter(status='active')
     
     data = []
     for student in students:
@@ -98,9 +101,13 @@ def generate_batch_report(batch):
         
         # Add marks for each internship
         for i in range(1, 9):
-            internship = student.internship_records.filter(internship_number=i, internship_type='regular').first()
-            if internship and internship.viva_marks:
-                student_data[f'Internship {i}'] = internship.viva_marks
+            internship = student.internships.filter(internship_number=i, internship_type='regular').first()
+            viva_marks = internship.assessment_marks.filter(
+                assessment_component__assessment_type='viva',
+                status__in=['approved', 'locked']
+            ).first() if internship else None
+            if viva_marks:
+                student_data[f'Internship {i}'] = viva_marks.marks_awarded
             else:
                 student_data[f'Internship {i}'] = 'Pending'
         

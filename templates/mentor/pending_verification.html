@@ -30,9 +30,9 @@
                             <a href="{% url 'mentor_verify_internship' internship.id %}" class="btn btn-sm btn-success">
                                 <i class="fas fa-check"></i> Verify
                             </a>
-                            <a href="{% url 'mentor_internship_detail' internship.id %}" class="btn btn-sm btn-info">
+                            <button type="button" class="btn btn-sm btn-info" onclick="viewInternship('{{ internship.id }}')">
                                 <i class="fas fa-eye"></i> View
-                            </a>
+                            </button>
                         </td>
                     </tr>
                     {% empty %}
@@ -46,11 +46,43 @@
     </div>
 </div>
 
+{% endblock %}
+
 {% block extra_js %}
 <script>
+    function viewInternship(id) {
+        fetch(`/dashboard/mentor/internships/${id}/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('viewModalBody').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Student:</strong> ${data.student}</p>
+                            <p><strong>Type:</strong> ${data.type}</p>
+                            <p><strong>Number:</strong> ${data.number}</p>
+                            <p><strong>Organisation:</strong> ${data.organisation}</p>
+                            <p><strong>Semester:</strong> ${data.semester}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Period:</strong> ${data.period}</p>
+                            <p><strong>Duration:</strong> ${data.duration}</p>
+                            <p><strong>Mode:</strong> ${data.mode}</p>
+                            <p><strong>Status:</strong> ${data.completion_status}</p>
+                            <p><strong>Verification:</strong> ${data.verification_status}</p>
+                            <p><strong>Submission Date:</strong> ${data.submission_date}</p>
+                        </div>
+                        <div class="col-12">
+                            <p><strong>Nature of Work:</strong> ${data.nature_of_work}</p>
+                            <p><strong>Remarks:</strong> ${data.remarks}</p>
+                        </div>
+                    </div>
+                `;
+                new bootstrap.Modal(document.getElementById('viewModal')).show();
+            });
+    }
+
     $(document).ready(function() {
         $('#verificationTable').DataTable();
     });
 </script>
-{% endblock %}
 {% endblock %}

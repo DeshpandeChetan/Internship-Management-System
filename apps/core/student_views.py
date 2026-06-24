@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
-from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks
+from django.http import JsonResponse
+from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks, Organisation
 from .decorators import student_required
 from .forms import InternshipForm
 
@@ -73,8 +74,17 @@ def my_internships(request):
     if not student:
         return redirect('profile')
 
-    internships = InternshipRecord.objects.filter(student=student).order_by('-start_date')
-    return render(request, 'student/internships.html', {'student': student, 'internships': internships, 'active_tab': 'my_internships'})
+    internships = InternshipRecord.objects.filter(student=student).select_related('organisation').order_by('-start_date')
+    return render(request, 'student/internships.html', {
+        'student': student,
+        'internships': internships,
+        'organisations': Organisation.objects.filter(is_active=True).order_by('name'),
+        'internship_types': InternshipRecord.INTERNSHIP_TYPES,
+        'completion_statuses': InternshipRecord.COMPLETION_STATUS,
+        'verification_statuses': InternshipRecord.VERIFICATION_STATUS,
+        'modes': (('offline', 'Offline'), ('online', 'Online'), ('hybrid', 'Hybrid')),
+        'active_tab': 'my_internships',
+    })
 
 @student_required
 def internship_add(request):
@@ -99,13 +109,26 @@ def internship_add(request):
 
 @student_required
 def internship_detail(request, pk):
-    """View internship details"""
+    """Return internship details for modal"""
     student = require_logged_in_student(request)
     if not student:
         return redirect('profile')
 
-    internship = get_object_or_404(InternshipRecord, pk=pk, student=student)
-    return render(request, 'student/internship_detail.html', {'student': student, 'internship': internship, 'active_tab': 'my_internships'})
+    internship = get_object_or_404(InternshipRecord.objects.select_related('organisation'), pk=pk, student=student)
+    return JsonResponse({
+        'organisation': internship.organisation.name,
+        'type': internship.get_internship_type_display(),
+        'number': internship.internship_number,
+        'semester': internship.related_semester or '-',
+        'period': f"{internship.start_date.strftime('%d %b %Y')} - {internship.end_date.strftime('%d %b %Y')}",
+        'duration': f'{internship.duration} days' if internship.duration is not None else '-',
+        'mode': internship.get_mode_display(),
+        'completion_status': internship.get_completion_status_display(),
+        'verification_status': internship.get_verification_status_display(),
+        'submission_date': internship.submission_date.strftime('%d %b %Y') if internship.submission_date else '-',
+        'nature_of_work': internship.nature_of_work or '-',
+        'remarks': internship.remarks or '-',
+    })
 
 
 @student_required
@@ -141,6 +164,25 @@ def internship_delete(request, pk):
         messages.success(request, 'Internship deleted successfully!')
         return redirect('my_internships')
     return render(request, 'student/internship_confirm_delete.html', {'student': student, 'internship': internship})
+
+
+@student_required
+def internship_toggle(request, pk):
+    """Toggle internship active/inactive-style completion status."""
+    student = require_logged_in_student(request)
+    if not student:
+        return redirect('profile')
+
+    internship = get_object_or_404(InternshipRecord, pk=pk, student=student)
+    if internship.completion_status == 'not_completed':
+        internship.completion_status = 'pending'
+        status = 'activated'
+    else:
+        internship.completion_status = 'not_completed'
+        status = 'deactivated'
+    internship.save(update_fields=['completion_status', 'updated_on'])
+    messages.success(request, f'Internship {status} successfully!')
+    return redirect('my_internships')
 
 @student_required
 def my_mentor(request):

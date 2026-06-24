@@ -1,0 +1,129 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}All Internships{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Assigned Student Internships</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="mentorInternshipsTable">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Type</th>
+                        <th>Number</th>
+                        <th>Organisation</th>
+                        <th>Period</th>
+                        <th>Status</th>
+                        <th>Verification</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for internship in internships %}
+                    <tr>
+                        <td>
+                            <strong>{{ internship.student.register_number }}</strong><br>
+                            <small>{{ internship.student.name }}</small>
+                        </td>
+                        <td>{{ internship.get_internship_type_display }}</td>
+                        <td>{{ internship.internship_number }}</td>
+                        <td>{{ internship.organisation.name }}</td>
+                        <td>{{ internship.start_date|date:"d M Y" }} - {{ internship.end_date|date:"d M Y" }}</td>
+                        <td>
+                            <span class="badge bg-{% if internship.completion_status == 'completed' %}success{% elif internship.completion_status == 'pending' %}warning{% else %}danger{% endif %}">
+                                {{ internship.get_completion_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if internship.verification_status == 'verified' %}success{% elif internship.verification_status == 'submitted' %}info{% elif internship.verification_status == 'draft' %}secondary{% elif internship.verification_status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                {{ internship.get_verification_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-info" onclick="viewStudent('{{ internship.student.id }}')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center">No internships found for your assigned students</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function viewStudent(id) {
+        fetch(`/dashboard/mentor/students/${id}/`)
+            .then(response => response.json())
+            .then(data => {
+                const internshipRows = data.internships.length
+                    ? data.internships.map(item => `
+                        <tr>
+                            <td>${item.number}</td>
+                            <td>${item.type}</td>
+                            <td>${item.organisation}</td>
+                            <td>${item.period}</td>
+                            <td>${item.status}</td>
+                            <td>${item.verification}</td>
+                        </tr>
+                    `).join('')
+                    : '<tr><td colspan="6" class="text-center">No internships found</td></tr>';
+
+                document.getElementById('viewModalBody').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Register Number:</strong> ${data.register_number}</p>
+                            <p><strong>Name:</strong> ${data.name}</p>
+                            <p><strong>Email:</strong> ${data.email}</p>
+                            <p><strong>Mobile:</strong> ${data.mobile}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Programme:</strong> ${data.programme}</p>
+                            <p><strong>Batch:</strong> ${data.batch}</p>
+                            <p><strong>Degree Period:</strong> ${data.degree_period}</p>
+                            <p><strong>Status:</strong> ${data.status}</p>
+                            <p><strong>Mentor Since:</strong> ${data.mentor_since}</p>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4"><strong>Total Internships:</strong> ${data.total_internships}</div>
+                        <div class="col-md-4"><strong>Completed:</strong> ${data.completed_internships}</div>
+                        <div class="col-md-4"><strong>Pending Verification:</strong> ${data.pending_verifications}</div>
+                    </div>
+                    <h6>Internships</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>Type</th>
+                                    <th>Organisation</th>
+                                    <th>Period</th>
+                                    <th>Status</th>
+                                    <th>Verification</th>
+                                </tr>
+                            </thead>
+                            <tbody>${internshipRows}</tbody>
+                        </table>
+                    </div>
+                `;
+                new bootstrap.Modal(document.getElementById('viewModal')).show();
+            });
+    }
+
+    $(document).ready(function() {
+        $('#mentorInternshipsTable').DataTable();
+    });
+</script>
+{% endblock %}

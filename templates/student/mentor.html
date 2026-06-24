@@ -1,0 +1,40 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}My Mentor{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">My Mentor</h5>
+    </div>
+    <div class="card-body">
+        {% if assignment %}
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Mentor Name:</strong> {{ assignment.faculty_mentor.user.get_full_name|default:assignment.faculty_mentor.user.email }}</p>
+                <p><strong>Email:</strong> {{ assignment.faculty_mentor.user.email }}</p>
+                <p><strong>Phone:</strong> {{ assignment.faculty_mentor.phone_number|default:"-" }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Assignment Level:</strong> {{ assignment.get_assignment_level_display }}</p>
+                <p><strong>Effective From:</strong> {{ assignment.effective_from|date:"d M Y" }}</p>
+                <p><strong>Effective To:</strong> {{ assignment.effective_to|date:"d M Y"|default:"Current" }}</p>
+                <p><strong>Status:</strong> {% if assignment.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-danger">Inactive</span>{% endif %}</p>
+            </div>
+            {% if assignment.related_semester or assignment.reason_for_change or assignment.remarks %}
+            <div class="col-12">
+                {% if assignment.related_semester %}<p><strong>Related Semester:</strong> {{ assignment.related_semester }}</p>{% endif %}
+                {% if assignment.reason_for_change %}<p><strong>Reason:</strong> {{ assignment.reason_for_change }}</p>{% endif %}
+                {% if assignment.remarks %}<p><strong>Remarks:</strong> {{ assignment.remarks }}</p>{% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-chalkboard-teacher fa-3x text-muted mb-3 d-block"></i>
+            <p class="mb-0">No active mentor assignment found.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

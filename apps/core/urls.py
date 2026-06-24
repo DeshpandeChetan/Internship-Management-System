@@ -108,6 +108,7 @@ urlpatterns = [
     path('student/internships/add/', student_views.internship_add, name='student_internship_add'),
     path('student/internships/<uuid:pk>/', student_views.internship_detail, name='student_internship_detail'),
     path('student/internships/<uuid:pk>/edit/', student_views.internship_edit, name='student_internship_edit'),
+    path('student/internships/<uuid:pk>/toggle/', student_views.internship_toggle, name='student_internship_toggle'),
     path('student/internships/<uuid:pk>/delete/', student_views.internship_delete, name='student_internship_delete'),
     path('student/mentor/', student_views.my_mentor, name='my_mentor'),
     path('student/marks/', student_views.my_marks, name='my_marks'),
@@ -120,6 +121,7 @@ urlpatterns = [
     path('mentor/students/<uuid:pk>/', mentor_views.student_detail, name='mentor_student_detail'),
     path('mentor/pending-verification/', mentor_views.pending_verification, name='mentor_pending_verification'),
     path('mentor/verify/<uuid:pk>/', mentor_views.verify_internship, name='mentor_verify_internship'),
+    path('mentor/internships/<uuid:pk>/', mentor_views.internship_detail, name='mentor_internship_detail'),
     path('mentor/all-internships/', mentor_views.all_internships, name='mentor_all_internships'),
     
     # ============================================

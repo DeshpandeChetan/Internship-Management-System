@@ -2,8 +2,31 @@
 
 {% block page_title %}Pending Assessments{% endblock %}
 
+{% block extra_css %}
+<style>
+    @media (min-width: 769px) {
+        .pending-assessments-card,
+        .pending-assessments-card .card-body,
+        .pending-assessments-card .dataTables_wrapper,
+        .pending-assessments-card .table-responsive {
+            overflow: visible !important;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .pending-assessments-card .table-responsive {
+            overflow-x: auto !important;
+        }
+    }
+
+    .pending-assessments-card .dropdown-menu {
+        z-index: 9999 !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
+<div class="card pending-assessments-card">
     <div class="card-header">
         <h5 class="mb-0">Verified Internships Ready for Assessment</h5>
     </div>
@@ -21,7 +44,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for internship in internships %}
+                    {% for row in assessment_rows %}
+                    {% with internship=row.internship form=row.form %}
                     <tr>
                         <td>{{ internship.student.register_number }}<br><small>{{ internship.student.name }}</small></td>
                         <td>{{ internship.get_internship_type_display }} {{ internship.internship_number }}</td>
@@ -30,14 +54,14 @@
                         <td>{{ internship.assessment_marks.count }}</td>
                         <td>
                             <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport">
                                     Actions
                                 </button>
                                 <ul class="dropdown-menu">
                                     <li>
-                                        <a class="dropdown-item" href="{% url 'evaluator_enter_marks' internship.id %}">
+                                        <button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#enterMarksModal{{ internship.id }}">
                                             <i class="fas fa-pen me-2"></i>Enter Marks
-                                        </a>
+                                        </button>
                                     </li>
                                     <li>
                                         <a class="dropdown-item" href="{% url 'evaluator_history' %}">
@@ -48,6 +72,8 @@
                             </div>
                         </td>
                     </tr>
+
+                    {% endwith %}
                     {% empty %}
                     <tr><td colspan="6" class="text-center">No verified internships ready for assessment</td></tr>
                     {% endfor %}
@@ -56,12 +82,72 @@
         </div>
     </div>
 </div>
+
+{% for row in assessment_rows %}
+{% with internship=row.internship form=row.form %}
+<div class="modal fade" id="enterMarksModal{{ internship.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title">
+                    <i class="fas fa-pen me-2"></i>Enter Marks
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'evaluator_enter_marks' internship.id %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row details-grid mb-2">
+                        <div class="col-md-6">
+                            <p><strong>Student:</strong> {{ internship.student.register_number }} - {{ internship.student.name }}</p>
+                            <p><strong>Internship:</strong> {{ internship.get_internship_type_display }} {{ internship.internship_number }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Organisation:</strong> {{ internship.organisation.name }}</p>
+                            <p><strong>Period:</strong> {{ internship.start_date|date:"d M Y" }} - {{ internship.end_date|date:"d M Y" }}</p>
+                        </div>
+                    </div>
+
+                    {% for field in form %}
+                        {% if field.is_hidden %}
+                            {{ field }}
+                        {% else %}
+                        <div class="mb-3">
+                            <label class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                            {% endif %}
+                            {% for error in field.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Marks
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endwith %}
+{% endfor %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    $('#pendingAssessmentsTable').DataTable();
+    $('#pendingAssessmentsTable').DataTable({
+        responsive: false,
+        autoWidth: true,
+        scrollX: false,
+        scrollCollapse: false
+    });
 });
 </script>
 {% endblock %}

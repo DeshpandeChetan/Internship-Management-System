@@ -413,7 +413,7 @@ function viewOrganisation(id) {
         .then(response => response.json())
         .then(data => {
             document.getElementById('viewModalBody').innerHTML = `
-                <div class="row">
+                <div class="row details-grid">
                     <div class="col-md-6">
                         <p><strong>Name:</strong> ${data.name}</p>
                         <p><strong>Type:</strong> ${data.type}</p>

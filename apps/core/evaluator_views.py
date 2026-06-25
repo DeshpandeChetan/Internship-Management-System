@@ -115,8 +115,20 @@ def evaluator_dashboard(request):
 def pending_assessments(request):
     """View pending assessments"""
     internships = _assessment_internships_for(request.user).order_by('-submission_date', '-created_on')
+    assessment_rows = []
+    for internship in internships:
+        form = AssessmentMarksForm(initial={
+            'internship_record': internship,
+            'assessment_date': timezone.now().date()
+        })
+        _prepare_marks_form(form, internship)
+        assessment_rows.append({
+            'internship': internship,
+            'form': form,
+        })
+
     return render(request, 'evaluator/pending_assessments.html', {
-        'internships': internships,
+        'assessment_rows': assessment_rows,
         'active_tab': 'evaluator_pending_assessments'
     })
 
@@ -142,6 +154,7 @@ def enter_marks(request, pk):
         for field, errors in form.errors.items():
             for error in errors:
                 messages.error(request, f'{field}: {error}')
+        return redirect('evaluator_pending_assessments')
     form = AssessmentMarksForm(initial={'internship_record': internship, 'assessment_date': timezone.now().date()})
     _prepare_marks_form(form, internship)
     return render(request, 'evaluator/enter_marks.html', {'internship': internship, 'form': form, 'active_tab': 'evaluator_pending_assessments'})

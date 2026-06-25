@@ -6,6 +6,7 @@ from django.utils import timezone
 from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks, Organisation, BreakRecord
 from .decorators import student_required
 from .forms import InternshipForm, BreakForm
+from .display import user_name_with_role
 from apps.utils.calculations import calculate_student_consolidated_marks
 
 
@@ -127,7 +128,11 @@ def internship_detail(request, pk):
     if not student:
         return redirect('profile')
 
-    internship = get_object_or_404(InternshipRecord.objects.select_related('organisation'), pk=pk, student=student)
+    internship = get_object_or_404(
+        InternshipRecord.objects.select_related('organisation', 'created_by', 'updated_by', 'verified_by', 'verified_by__profile'),
+        pk=pk,
+        student=student
+    )
     return JsonResponse({
         'organisation': internship.organisation.name,
         'type': internship.get_internship_type_display(),
@@ -143,6 +148,7 @@ def internship_detail(request, pk):
         'document': internship.supporting_document.url if internship.supporting_document else '',
         'certificate': internship.certificate_upload.url if internship.certificate_upload else '',
         'report': internship.report_upload.url if internship.report_upload else '',
+        'date_override': 'Yes' if internship.date_override_approved else 'No',
         'break_overlap': 'Yes' if internship.has_break_overlap else 'No',
         'overlapping_breaks': [
             f"{break_record.get_break_type_display()} ({break_record.start_date.strftime('%d %b %Y')} - {break_record.end_date.strftime('%d %b %Y')})"
@@ -152,6 +158,7 @@ def internship_detail(request, pk):
         'remarks': internship.remarks or '-',
         'created_by': internship.created_by.get_full_name() or internship.created_by.email if internship.created_by else '-',
         'updated_by': internship.updated_by.get_full_name() or internship.updated_by.email if internship.updated_by else '-',
+        'verified_by': user_name_with_role(internship.verified_by),
     })
 
 
@@ -188,16 +195,8 @@ def internship_edit(request, pk):
 @student_required
 def internship_delete(request, pk):
     """Delete internship"""
-    student = require_logged_in_student(request)
-    if not student:
-        return redirect('profile')
-
-    internship = get_object_or_404(InternshipRecord, pk=pk, student=student)
-    if request.method == 'POST':
-        internship.delete()
-        messages.success(request, 'Internship deleted successfully!')
-        return redirect('my_internships')
-    return render(request, 'student/internship_confirm_delete.html', {'student': student, 'internship': internship})
+    messages.error(request, 'Students are not allowed to delete internship records.')
+    return redirect('my_internships')
 
 
 @student_required

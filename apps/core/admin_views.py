@@ -69,6 +69,7 @@ from .forms import (
     ADMIN_MANAGED_ROLE_CHOICES
 )
 from .decorators import admin_required
+from .display import user_name_with_role
 
 # Import utilities from apps/utils
 from apps.utils.permissions import is_admin, is_dept_admin, is_hod
@@ -1261,7 +1262,7 @@ def internship_list(request):
 def internship_detail(request, pk):
     """Return internship details for modal."""
     internship = get_object_or_404(
-        InternshipRecord.objects.select_related('student', 'organisation', 'created_by', 'updated_by', 'verified_by'),
+        InternshipRecord.objects.select_related('student', 'organisation', 'created_by', 'updated_by', 'verified_by', 'verified_by__profile'),
         pk=pk
     )
 
@@ -1292,7 +1293,7 @@ def internship_detail(request, pk):
         'remarks': internship.remarks or '-',
         'created_by': internship.created_by.get_full_name() or internship.created_by.email if internship.created_by else '-',
         'updated_by': internship.updated_by.get_full_name() or internship.updated_by.email if internship.updated_by else '-',
-        'verified_by': internship.verified_by.get_full_name() or internship.verified_by.email if internship.verified_by else '-',
+        'verified_by': user_name_with_role(internship.verified_by),
     })
 
 

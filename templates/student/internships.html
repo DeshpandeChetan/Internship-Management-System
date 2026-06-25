@@ -93,12 +93,6 @@
                                             {% endif %}
                                         </button>
                                     </li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteInternshipModal{{ internship.id }}">
-                                            <i class="fas fa-trash-alt text-danger me-2"></i> Delete
-                                        </button>
-                                    </li>
                                 </ul>
                             </div>
                         </td>
@@ -232,30 +226,6 @@
                         </div>
                     </div>
 
-                    <div class="modal fade" id="deleteInternshipModal{{ internship.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
-                        <div class="modal-dialog" style="max-width: 400px; margin-top: 80px;">
-                            <div class="modal-content">
-                                <div class="modal-header bg-danger text-white" style="border-radius: 15px 15px 0 0;">
-                                    <h5 class="modal-title"><i class="fas fa-trash-alt me-2"></i>Delete Internship</h5>
-                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body text-center py-4">
-                                    <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3 d-block"></i>
-                                    <p class="mb-1 fw-semibold">Are you sure you want to delete this internship?</p>
-                                    <h6 class="text-muted small mb-0">This action cannot be undone.</h6>
-                                </div>
-                                <div class="modal-footer justify-content-center gap-2">
-                                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
-                                    <form method="post" action="{% url 'student_internship_delete' internship.id %}">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-danger px-4">
-                                            <i class="fas fa-trash me-2"></i>Delete
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     {% empty %}
                     <tr>
                         <td colspan="7" class="text-center">No internships found</td>
@@ -310,14 +280,6 @@
                             <input type="text" name="academic_phase" class="form-control" placeholder="Year 1, Year 2, etc.">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Start Date *</label>
-                            <input type="date" name="start_date" class="form-control" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">End Date *</label>
-                            <input type="date" name="end_date" class="form-control" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
                             <label class="form-label">Mode *</label>
                             <select name="mode" class="form-select" required>
                                 {% for mode_code, mode_label in modes %}
@@ -325,6 +287,15 @@
                                 {% endfor %}
                             </select>
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Start Date *</label>
+                            <input type="date" name="start_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">End Date *</label>
+                            <input type="date" name="end_date" class="form-control" required>
+                        </div>
+                        
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Submission Date</label>
                             <input type="date" name="submission_date" class="form-control">
@@ -376,7 +347,7 @@
             .then(response => response.json())
             .then(data => {
                 document.getElementById('viewModalBody').innerHTML = `
-                    <div class="row">
+                    <div class="row details-grid">
                         <div class="col-md-6">
                             <p><strong>Organisation:</strong> ${data.organisation}</p>
                             <p><strong>Type:</strong> ${data.type}</p>
@@ -385,22 +356,24 @@
                             <p><strong>Semester:</strong> ${data.semester}</p>
                             <p><strong>Period:</strong> ${data.period}</p>
                             <p><strong>Duration:</strong> ${data.duration}</p>
-                        </div>
-                        <div class="col-md-6">
                             <p><strong>Mode:</strong> ${data.mode}</p>
                             <p><strong>Completion Status:</strong> ${data.completion_status}</p>
                             <p><strong>Verification Status:</strong> ${data.verification_status}</p>
+                        </div>
+                        <div class="col-md-6">
                             <p><strong>Submission Date:</strong> ${data.submission_date}</p>
                             <p><strong>Certificate:</strong> ${data.certificate ? `<a href="${data.certificate}" target="_blank">View certificate</a>` : '-'}</p>
                             <p><strong>Report:</strong> ${data.report ? `<a href="${data.report}" target="_blank">View report</a>` : '-'}</p>
                             <p><strong>Other Document:</strong> ${data.document ? `<a href="${data.document}" target="_blank">View uploaded file</a>` : '-'}</p>
+                            <p><strong>Date Override:</strong> ${data.date_override}</p>
                             <p><strong>Overlaps Break:</strong> ${data.break_overlap}</p>
-                            ${data.overlapping_breaks.length ? `<p><strong>Break Details:</strong> ${data.overlapping_breaks.join(', ')}</p>` : ''}
                             <p><strong>Nature of Work:</strong> ${data.nature_of_work}</p>
                             <p><strong>Remarks:</strong> ${data.remarks}</p>
                             <p><strong>Added By:</strong> ${data.created_by}</p>
                             <p><strong>Last Edited By:</strong> ${data.updated_by}</p>
+                            <p><strong>Verified By:</strong> ${data.verified_by}</p>
                         </div>
+                        ${data.overlapping_breaks.length ? `<div class="col-12"><p><strong>Break Details:</strong> ${data.overlapping_breaks.join(', ')}</p></div>` : ''}
                     </div>
                 `;
                 new bootstrap.Modal(document.getElementById('viewModal')).show();

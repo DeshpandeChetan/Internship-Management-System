@@ -350,7 +350,7 @@ function viewBreak(id) {
         .then(response => response.json())
         .then(data => {
             document.getElementById('viewModalBody').innerHTML = `
-                <div class="row">
+                <div class="row details-grid">
                     <div class="col-md-6">
                         <p><strong>Student:</strong> ${data.student}</p>
                         <p><strong>Break Type:</strong> ${data.break_type}</p>

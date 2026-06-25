@@ -333,7 +333,7 @@ function viewBatch(id) {
         .then(response => response.json())
         .then(data => {
             document.getElementById('viewModalBody').innerHTML = `
-                <div class="row">
+                <div class="row details-grid">
                     <div class="col-md-6">
                         <p><strong>Batch Name:</strong> ${data.name}</p>
                         <p><strong>Programme:</strong> ${data.programme}</p>

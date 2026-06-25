@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks
 from .decorators import mentor_required
+from .display import user_name_with_role
 
 
 def get_assigned_student_ids(request):
@@ -23,7 +24,7 @@ def get_assigned_student_or_404(request, pk):
 
 def get_assigned_internship_or_404(request, pk):
     return get_object_or_404(
-        InternshipRecord.objects.select_related('student', 'organisation', 'created_by', 'updated_by', 'verified_by'),
+        InternshipRecord.objects.select_related('student', 'organisation', 'created_by', 'updated_by', 'verified_by', 'verified_by__profile'),
         pk=pk,
         student_id__in=get_assigned_student_ids(request)
     )
@@ -202,7 +203,7 @@ def internship_detail(request, pk):
         'remarks': internship.remarks or '-',
         'created_by': internship.created_by.get_full_name() or internship.created_by.email if internship.created_by else '-',
         'updated_by': internship.updated_by.get_full_name() or internship.updated_by.email if internship.updated_by else '-',
-        'verified_by': internship.verified_by.get_full_name() or internship.verified_by.email if internship.verified_by else '-',
+        'verified_by': user_name_with_role(internship.verified_by),
     })
 
 @mentor_required

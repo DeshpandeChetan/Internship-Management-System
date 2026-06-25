@@ -62,7 +62,7 @@
             .then(response => response.json())
             .then(data => {
                 document.getElementById('viewModalBody').innerHTML = `
-                    <div class="row">
+                    <div class="row details-grid">
                         <div class="col-md-6">
                             <p><strong>Student:</strong> ${data.student}</p>
                             <p><strong>Type:</strong> ${data.type}</p>
@@ -70,26 +70,26 @@
                             <p><strong>Academic Phase:</strong> ${data.academic_phase}</p>
                             <p><strong>Organisation:</strong> ${data.organisation}</p>
                             <p><strong>Semester:</strong> ${data.semester}</p>
-                        </div>
-                        <div class="col-md-6">
                             <p><strong>Period:</strong> ${data.period}</p>
                             <p><strong>Duration:</strong> ${data.duration}</p>
                             <p><strong>Mode:</strong> ${data.mode}</p>
                             <p><strong>Status:</strong> ${data.completion_status}</p>
+                        </div>
+                        <div class="col-md-6">
                             <p><strong>Verification:</strong> ${data.verification_status}</p>
                             <p><strong>Submission Date:</strong> ${data.submission_date}</p>
                             <p><strong>Certificate:</strong> ${data.certificate ? `<a href="${data.certificate}" target="_blank">View certificate</a>` : '-'}</p>
                             <p><strong>Report:</strong> ${data.report ? `<a href="${data.report}" target="_blank">View report</a>` : '-'}</p>
                             <p><strong>Other Document:</strong> ${data.document ? `<a href="${data.document}" target="_blank">View uploaded file</a>` : '-'}</p>
+                            <p><strong>Date Override:</strong> ${data.date_override}</p>
                             <p><strong>Overlaps Break:</strong> ${data.break_overlap}</p>
-                        </div>
-                        <div class="col-12">
                             <p><strong>Nature of Work:</strong> ${data.nature_of_work}</p>
                             <p><strong>Remarks:</strong> ${data.remarks}</p>
                             <p><strong>Added By:</strong> ${data.created_by}</p>
                             <p><strong>Last Edited By:</strong> ${data.updated_by}</p>
                             <p><strong>Verified By:</strong> ${data.verified_by}</p>
                         </div>
+                        ${data.overlapping_breaks.length ? `<div class="col-12"><p><strong>Break Details:</strong> ${data.overlapping_breaks.join(', ')}</p></div>` : ''}
                     </div>
                 `;
                 new bootstrap.Modal(document.getElementById('viewModal')).show();

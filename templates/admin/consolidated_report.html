@@ -4,43 +4,65 @@
 
 {% block content %}
 <div class="card">
-    <div class="card-header">
-        <h5>Consolidated Marks Report</h5>
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h5 class="mb-0">Consolidated Marks Report</h5>
+        <form method="get" class="d-flex align-items-center gap-2">
+            <label class="form-label mb-0">Top scored internships</label>
+            <input type="number" name="top_n" class="form-control form-control-sm" value="{{ selected_top_n }}" min="1" max="8" style="width: 90px;">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-sync-alt me-1"></i>Recalculate
+            </button>
+        </form>
     </div>
     <div class="card-body">
+        <div class="alert alert-info">
+            Regular average uses finalized regular internship viva marks. Missing final viva marks are shown before interpreting the final score.
+        </div>
         <div class="table-responsive">
-            <table class="table table-hover" id="reportTable">
+            <table class="table table-hover align-middle" id="reportTable">
                 <thead>
                     <tr>
                         <th>Reg No</th>
                         <th>Student Name</th>
                         <th>Regular Avg</th>
+                        <th>Top {{ selected_top_n }} Avg</th>
                         <th>Assessment Score</th>
                         <th>Final Score</th>
                         <th>Formula</th>
-                        <th>Status</th>
+                        <th>Intermediate</th>
+                        <th>Missing</th>
+                        <th>Details</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for score in scores %}
+                    {% for row in rows %}
+                    {% with student=row.student data=row.data %}
                     <tr>
-                        <td>{{ score.student.register_number }}</td>
-                        <td>{{ score.student.name }}</td>
-                        <td>{{ score.regular_internship_average|default:"-" }}</td>
-                        <td>{{ score.assessment_internship_score|default:"-" }}</td>
-                        <td><strong>{{ score.final_consolidated_score|default:"-" }}</strong></td>
-                        <td>{{ score.calculation_formula }}</td>
+                        <td>{{ student.register_number }}</td>
+                        <td>{{ student.name }}</td>
+                        <td>{{ data.regular_average|default:"-" }}</td>
+                        <td>{{ data.top_n_average|default:"-" }}</td>
+                        <td>{{ data.assessment_score|default:"-" }}</td>
+                        <td><strong>{{ data.final_score|default:"-" }}</strong></td>
+                        <td>{{ data.formula_used }}</td>
+                        <td>{% if data.intermediate_included %}Included{% else %}Excluded{% endif %}</td>
                         <td>
-                            {% if score.is_finalized %}
-                            <span class="badge bg-success">Finalized</span>
+                            {% if data.missing_regular_count %}
+                            <span class="badge bg-warning text-dark">{{ data.missing_regular_count }}</span>
                             {% else %}
-                            <span class="badge bg-warning">Pending</span>
+                            <span class="badge bg-success">0</span>
                             {% endif %}
                         </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ student.id }}">
+                                <i class="fas fa-eye me-1"></i>View
+                            </button>
+                        </td>
                     </tr>
+                    {% endwith %}
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center">No data available</td>
+                        <td colspan="10" class="text-center">No data available</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -56,6 +78,83 @@
         </div>
     </div>
 </div>
+
+{% for row in rows %}
+{% with student=row.student data=row.data %}
+<div class="modal fade" id="detailModal{{ student.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">{{ student.register_number }} - {{ student.name }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row details-grid">
+                    <div class="col-md-6">
+                        <p><strong>Formula:</strong> {{ data.formula_used }}</p>
+                        <p><strong>Regular Required:</strong> {{ data.regular_internship_count }}</p>
+                        <p><strong>Finalized Regular Marks:</strong> {{ data.available_regular_count }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Top N Selected:</strong> {{ data.top_n_value }}</p>
+                        <p><strong>Intermediate Marks:</strong> {% if data.intermediate_included %}Included{% else %}Excluded{% endif %}</p>
+                        <p><strong>Assessment Internship:</strong> {% if data.assessment_internship_enabled %}Enabled{% else %}Disabled{% endif %}</p>
+                    </div>
+                </div>
+                <h6>Regular Internship Scores</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Organisation</th>
+                                <th>Score Used</th>
+                                <th>Viva Score</th>
+                                <th>Completion</th>
+                                <th>Verification</th>
+                                <th>Missing Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in data.regular_details %}
+                            <tr>
+                                <td>{{ item.number }}</td>
+                                <td>{{ item.organisation }}</td>
+                                <td>{{ item.score|default:"-" }}</td>
+                                <td>{{ item.viva_score|default:"-" }}</td>
+                                <td>{{ item.completion_status }}</td>
+                                <td>{{ item.verification_status }}</td>
+                                <td>{{ item.missing_reason|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <h6>Top Scored Internships Used for Top {{ data.top_n_value }}</h6>
+                <p class="mb-2">
+                    {% for item in data.top_n_details %}
+                    <span class="badge bg-info text-dark me-1">#{{ item.number }}: {{ item.score }}</span>
+                    {% empty %}
+                    <span class="text-muted">No finalized regular viva marks available.</span>
+                    {% endfor %}
+                </p>
+                {% if data.missing_marks %}
+                <h6>Missing Marks</h6>
+                <ul class="mb-0">
+                    {% for missing in data.missing_marks %}
+                    <li>{{ missing }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endwith %}
+{% endfor %}
 {% endblock %}
 
 {% block extra_js %}

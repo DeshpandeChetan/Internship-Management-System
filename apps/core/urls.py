@@ -163,5 +163,6 @@ urlpatterns = [
     # REPORTS (Shared)
     # ============================================
     path('reports/', views.report_list, name='report_list'),
+    path('reports/consolidated/', views.consolidated_report, name='shared_consolidated_report'),
     path('reports/export/<str:report_type>/', views.export_report, name='report_export'),
 ]

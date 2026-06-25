@@ -60,12 +60,12 @@ from apps.authentication.models import UserProfile
 from .models import (
     Department, Programme, Batch, Student, Organisation, 
     InternshipRecord, BreakRecord,
-    MentorAssignment, AssessmentComponent, AssessmentMarks, ConsolidatedScore
+    MentorAssignment, AssessmentComponent, AssessmentMarks, AssessmentConfiguration, ConsolidatedScore
 )
 from .forms import (
     UserForm, StudentForm, OrganisationForm, InternshipForm, 
     BreakForm, MentorAssignmentForm, AssessmentMarksForm,
-    AssessmentComponentForm, ProgrammeForm, BatchForm, ProfileForm, DepartmentForm,
+    AssessmentComponentForm, AssessmentConfigurationForm, ProgrammeForm, BatchForm, ProfileForm, DepartmentForm,
     ADMIN_MANAGED_ROLE_CHOICES
 )
 from .decorators import admin_required
@@ -1484,16 +1484,22 @@ def _break_overlapping_internships(break_record):
 def assessment_config(request):
     """Configure assessment components"""
     components = AssessmentComponent.objects.all()
+    configurations = AssessmentConfiguration.objects.select_related('programme').order_by('programme__code', '-created_on')
     
     if request.method == 'POST':
-        form = AssessmentComponentForm(request.POST)
+        form_type = request.POST.get('form_type', 'component')
+        form_class = AssessmentConfigurationForm if form_type == 'policy' else AssessmentComponentForm
+        form = form_class(request.POST)
         if form.is_valid():
             try:
                 form.save()
-                messages.success(request, 'Assessment component added successfully!')
+                if form_type == 'policy':
+                    messages.success(request, 'Assessment calculation policy saved successfully!')
+                else:
+                    messages.success(request, 'Assessment component added successfully!')
                 return redirect('admin_assessment_config')
             except Exception as e:
-                messages.error(request, f'Error adding component: {str(e)}')
+                messages.error(request, f'Error saving assessment configuration: {str(e)}')
         else:
             for field, errors in form.errors.items():
                 for error in errors:
@@ -1503,6 +1509,9 @@ def assessment_config(request):
     context = {
         'active_tab': 'admin_assessment_config',
         'components': components,
+        'configurations': configurations,
+        'programmes': Programme.objects.filter(is_active=True).order_by('code'),
+        'calculation_choices': AssessmentConfiguration.CALCULATION_CHOICES,
     }
     return render(request, 'admin/assessment_config.html', context)
 
@@ -1732,8 +1741,15 @@ def admin_reports(request):
 @user_passes_test(is_admin)
 def consolidated_report(request):
     """Consolidated marks report"""
+    top_n = request.GET.get('top_n')
+    try:
+        top_n = int(top_n) if top_n else None
+    except (TypeError, ValueError):
+        top_n = None
+
+    rows = []
     for student in Student.objects.select_related('programme').all():
-        data = calculate_student_consolidated_marks(student)
+        data = calculate_student_consolidated_marks(student, top_n=top_n)
         ConsolidatedScore.objects.update_or_create(
             student=student,
             calculation_formula=data.get('formula_used', 'Default (Simple Average)'),
@@ -1743,11 +1759,12 @@ def consolidated_report(request):
                 'final_consolidated_score': data.get('final_score') or 0,
             }
         )
-    scores = ConsolidatedScore.objects.select_related('student').all()
+        rows.append({'student': student, 'data': data})
     
     context = {
         'active_tab': 'consolidated',
-        'scores': scores,
+        'rows': rows,
+        'selected_top_n': top_n or 5,
     }
     return render(request, 'admin/consolidated_report.html', context)
 

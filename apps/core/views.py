@@ -130,6 +130,7 @@ from django.contrib import messages
 from django.http import HttpResponse
 from .models import Student, InternshipRecord, AssessmentMarks, MentorAssignment, ConsolidatedScore
 from apps.utils.report_generator import generate_excel_report, generate_pdf_report
+from apps.utils.calculations import calculate_student_consolidated_marks
 
 
 @login_required
@@ -209,13 +210,56 @@ def report_list(request):
 
 
 @login_required
+def consolidated_report(request):
+    role = request.user.profile.role if hasattr(request.user, 'profile') else ''
+    top_n = request.GET.get('top_n')
+    try:
+        top_n = int(top_n) if top_n else None
+    except (TypeError, ValueError):
+        top_n = None
+
+    if role == 'faculty_mentor':
+        students = Student.objects.filter(id__in=_mentor_student_ids(request.user)).select_related('programme', 'batch')
+        active_tab = 'mentor_consolidated_report'
+    elif role == 'evaluator':
+        students = Student.objects.filter(
+            internships__assessment_marks__evaluator=request.user
+        ).distinct().select_related('programme', 'batch')
+        active_tab = 'evaluator_consolidated_report'
+    elif role == 'student':
+        student = _student_for_user(request.user)
+        students = Student.objects.filter(id=student.id) if student else Student.objects.none()
+        active_tab = 'student_reports'
+    else:
+        return HttpResponse("Consolidated report is not available for this role here.", status=403)
+
+    rows = [
+        {'student': student, 'data': calculate_student_consolidated_marks(student, top_n=top_n)}
+        for student in students.order_by('register_number')
+    ]
+    return render(request, 'admin/consolidated_report.html', {
+        'rows': rows,
+        'selected_top_n': top_n or 5,
+        'active_tab': active_tab,
+    })
+
+
+@login_required
 def export_report(request, report_type):
     """Export report in Excel/PDF format"""
     role = request.user.profile.role if hasattr(request.user, 'profile') else ''
     export_format = request.GET.get('format', 'excel')
+    top_n = request.GET.get('top_n')
+    try:
+        top_n = int(top_n) if top_n else None
+    except (TypeError, ValueError):
+        top_n = None
 
     if role in ['admin', 'hod']:
         from . import admin_views
+        consolidated_students = Student.objects.select_related('programme')
+        if role == 'hod' and request.user.profile.department_id:
+            consolidated_students = consolidated_students.filter(department=request.user.profile.department)
 
         report_map = {
             'student': (admin_views._student_report_rows(), ['Register No', 'Name', 'Programme', 'Batch', 'Degree Start', 'Degree End', 'Status', 'Internships', 'Breaks'], 'student_report'),
@@ -223,7 +267,7 @@ def export_report(request, report_type):
             'organisation': (admin_views._organisation_report_rows(), ['Organisation', 'Type', 'Location', 'Area of Work', 'Status', 'Student Count', 'Internship Count'], 'organisation_report'),
             'mentor': (admin_views._mentor_report_rows(), ['Register No', 'Student', 'Faculty Mentor', 'Effective From', 'Effective To', 'Semester', 'Level', 'Active'], 'mentor_assignment_report'),
             'break': (admin_views._break_report_rows(), ['Register No', 'Student', 'Break Type', 'Start Date', 'End Date', 'Approved By', 'Overlapping Internships'], 'break_report'),
-            'consolidated': (_consolidated_report_rows(), ['Register No', 'Student', 'Regular Average', 'Assessment Score', 'Final Score', 'Formula', 'Finalized'], 'consolidated_marks_report'),
+            'consolidated': (_consolidated_report_rows(consolidated_students, top_n), ['Register No', 'Student', 'Regular Average', 'Top N Average', 'Assessment Score', 'Final Score', 'Formula', 'Intermediate Included', 'Missing Marks'], 'consolidated_marks_report'),
         }
     elif role == 'student':
         student = _student_for_user(request.user)
@@ -234,13 +278,19 @@ def export_report(request, report_type):
             'internship': (_student_internship_report_rows(student), ['Type', 'Number', 'Organisation', 'Start Date', 'End Date', 'Completion', 'Verification', 'Viva Marks'], 'my_internship_report'),
         }
     elif role == 'faculty_mentor':
+        mentor_students = Student.objects.filter(id__in=_mentor_student_ids(request.user)).select_related('programme')
         report_map = {
             'internship': (_mentor_internship_report_rows(request.user), ['Register No', 'Student', 'Type', 'Number', 'Organisation', 'Start Date', 'End Date', 'Completion', 'Verification'], 'mentor_internship_report'),
             'mentor': (_mentor_assignment_report_rows(request.user), ['Register No', 'Student', 'Effective From', 'Effective To', 'Semester', 'Level', 'Active'], 'my_mentor_assignment_report'),
+            'consolidated': (_consolidated_report_rows(mentor_students, top_n), ['Register No', 'Student', 'Regular Average', 'Top N Average', 'Assessment Score', 'Final Score', 'Formula', 'Intermediate Included', 'Missing Marks'], 'mentor_consolidated_marks_report'),
         }
     elif role == 'evaluator':
+        evaluator_students = Student.objects.filter(
+            internships__assessment_marks__evaluator=request.user
+        ).distinct().select_related('programme')
         report_map = {
             'internship': (_evaluator_marks_report_rows(request.user), ['Register No', 'Student', 'Internship', 'Component', 'Marks', 'Maximum', 'Status', 'Assessment Date'], 'evaluator_marks_report'),
+            'consolidated': (_consolidated_report_rows(evaluator_students, top_n), ['Register No', 'Student', 'Regular Average', 'Top N Average', 'Assessment Score', 'Final Score', 'Formula', 'Intermediate Included', 'Missing Marks'], 'evaluator_consolidated_marks_report'),
         }
     else:
         return HttpResponse("Reports are not available for this role.", status=403)
@@ -354,18 +404,21 @@ def _evaluator_marks_report_rows(user):
     return rows
 
 
-def _consolidated_report_rows():
+def _consolidated_report_rows(students=None, top_n=None):
     rows = []
-    scores = ConsolidatedScore.objects.select_related('student').order_by('student__register_number')
-    for score in scores:
+    students = students or Student.objects.select_related('programme')
+    for student in students.order_by('register_number'):
+        data = calculate_student_consolidated_marks(student, top_n=top_n)
         rows.append({
-            'Register No': score.student.register_number,
-            'Student': score.student.name,
-            'Regular Average': score.regular_internship_average or '',
-            'Assessment Score': score.assessment_internship_score or '',
-            'Final Score': score.final_consolidated_score or '',
-            'Formula': score.calculation_formula,
-            'Finalized': 'Yes' if score.is_finalized else 'No',
+            'Register No': student.register_number,
+            'Student': student.name,
+            'Regular Average': data.get('regular_average', ''),
+            'Top N Average': data.get('top_n_average', ''),
+            'Assessment Score': data.get('assessment_score') or '',
+            'Final Score': data.get('final_score', ''),
+            'Formula': data.get('formula_used', ''),
+            'Intermediate Included': 'Yes' if data.get('intermediate_included') else 'No',
+            'Missing Marks': '; '.join(data.get('missing_marks') or []),
         })
     return rows
 

@@ -73,11 +73,18 @@ def reports(request):
 @hod_required
 def consolidated_report(request):
     """Consolidated marks report"""
+    top_n = request.GET.get('top_n')
+    try:
+        top_n = int(top_n) if top_n else None
+    except (TypeError, ValueError):
+        top_n = None
+
     students = Student.objects.select_related('programme')
     if request.user.profile.department_id:
         students = students.filter(department=request.user.profile.department)
+    rows = []
     for student in students:
-        data = calculate_student_consolidated_marks(student)
+        data = calculate_student_consolidated_marks(student, top_n=top_n)
         ConsolidatedScore.objects.update_or_create(
             student=student,
             calculation_formula=data.get('formula_used', 'Default (Simple Average)'),
@@ -87,8 +94,12 @@ def consolidated_report(request):
                 'final_consolidated_score': data.get('final_score') or 0,
             }
         )
-    scores = ConsolidatedScore.objects.filter(student__in=students).select_related('student')
-    return render(request, 'hod/consolidated_report.html', {'scores': scores, 'active_tab': 'hod_consolidated_report'})
+        rows.append({'student': student, 'data': data})
+    return render(request, 'hod/consolidated_report.html', {
+        'rows': rows,
+        'selected_top_n': top_n or 5,
+        'active_tab': 'hod_consolidated_report'
+    })
 
 @hod_required
 def batch_report(request):

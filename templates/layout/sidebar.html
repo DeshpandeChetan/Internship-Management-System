@@ -157,6 +157,9 @@
                 <a class="nav-link {% if active_tab == 'mentor_reports' %}active{% endif %}" href="{% url 'report_list' %}">
                     <i class="fas fa-file-alt"></i> Reports
                 </a>
+                <a class="nav-link {% if active_tab == 'mentor_consolidated_report' %}active{% endif %}" href="{% url 'shared_consolidated_report' %}">
+                    <i class="fas fa-chart-bar"></i> Consolidated Marks
+                </a>
             </div>
             {% endif %}
 
@@ -177,6 +180,9 @@
                 <div class="nav-group-title">Reports</div>
                 <a class="nav-link {% if active_tab == 'evaluator_reports' %}active{% endif %}" href="{% url 'report_list' %}">
                     <i class="fas fa-file-alt"></i> Reports
+                </a>
+                <a class="nav-link {% if active_tab == 'evaluator_consolidated_report' %}active{% endif %}" href="{% url 'shared_consolidated_report' %}">
+                    <i class="fas fa-chart-bar"></i> Consolidated Marks
                 </a>
             </div>
             {% endif %}

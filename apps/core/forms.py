@@ -7,7 +7,7 @@ from django.db.models import Q
 from .models import (
     Department, Programme, Batch, Student, Organisation, 
     InternshipRecord, BreakRecord,
-    MentorAssignment, AssessmentMarks, AssessmentComponent
+    MentorAssignment, AssessmentMarks, AssessmentComponent, AssessmentConfiguration
 )
 from ..authentication.models import UserProfile
 
@@ -542,6 +542,37 @@ class AssessmentComponentForm(forms.ModelForm):
             'is_mandatory': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+
+class AssessmentConfigurationForm(forms.ModelForm):
+    """Form for programme-level consolidated mark calculation rules."""
+    class Meta:
+        model = AssessmentConfiguration
+        fields = [
+            'programme', 'regular_internship_count', 'assessment_internship_enabled',
+            'assessment_internship_duration_months', 'include_intermediate_marks',
+            'calculation_formula', 'best_n_value', 'is_active'
+        ]
+        widgets = {
+            'programme': forms.Select(attrs={'class': 'form-select'}),
+            'regular_internship_count': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 12}),
+            'assessment_internship_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'assessment_internship_duration_months': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 12}),
+            'include_intermediate_marks': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'calculation_formula': forms.Select(attrs={'class': 'form-select'}),
+            'best_n_value': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 12}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        regular_count = cleaned_data.get('regular_internship_count') or 8
+        best_n = cleaned_data.get('best_n_value') or 0
+        if cleaned_data.get('calculation_formula') == 'best_n' and best_n <= 0:
+            self.add_error('best_n_value', 'Best N value is required for Best N calculation.')
+        if best_n and best_n > regular_count:
+            self.add_error('best_n_value', 'Best N cannot be greater than the regular internship count.')
+        return cleaned_data
 
 
 # ============================================

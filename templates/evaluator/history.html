@@ -2,8 +2,37 @@
 
 {% block page_title %}Assessment History{% endblock %}
 
+{% block extra_css %}
+<style>
+    @media (min-width: 769px) {
+        .assessment-history-card,
+        .assessment-history-card .card-body,
+        .assessment-history-card .dataTables_wrapper,
+        .assessment-history-card .dataTables_scroll,
+        .assessment-history-card .dataTables_scrollBody,
+        .assessment-history-card .table-responsive {
+            overflow: visible !important;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .assessment-history-card .table-responsive {
+            overflow-x: auto !important;
+        }
+    }
+
+    .assessment-history-card .dropdown-menu {
+        z-index: 9999 !important;
+    }
+
+    .assessment-history-card .dropdown {
+        position: static;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
+<div class="card assessment-history-card">
     <div class="card-header">
         <h5 class="mb-0">Marks Entered by Me</h5>
     </div>
@@ -46,7 +75,7 @@
                         <td>{% if mark.supporting_document %}<a href="{{ mark.supporting_document.url }}" target="_blank">View</a>{% else %}-{% endif %}</td>
                         <td>
                             <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport">
                                     Actions
                                 </button>
                                 <ul class="dropdown-menu">
@@ -101,7 +130,19 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    $('#historyTable').DataTable();
+    $('#historyTable').DataTable({
+        responsive: false,
+        autoWidth: true,
+        scrollX: false,
+        scrollCollapse: false,
+        columnDefs: [
+            {
+                targets: -1,
+                orderable: false,
+                searchable: false
+            }
+        ]
+    });
 });
 
 function viewMarkHistory(id) {

@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
+from django.db.models import Count
 from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks
 from .decorators import mentor_required
 from .display import user_name_with_role
@@ -39,15 +40,44 @@ def mentor_dashboard(request):
     ).select_related('student')
     
     students = [a.student for a in assignments]
+    internships = InternshipRecord.objects.filter(student__in=students).select_related('student', 'organisation')
     pending_verifications = InternshipRecord.objects.filter(
         student__in=students,
         verification_status='submitted'
     ).count()
+    verified_without_marks = internships.filter(verification_status='verified', assessment_marks__isnull=True).count()
+    verification_counts = {
+        row['verification_status']: row['count']
+        for row in internships.values('verification_status').annotate(count=Count('id'))
+    }
+    completion_counts = {
+        row['completion_status']: row['count']
+        for row in internships.values('completion_status').annotate(count=Count('id'))
+    }
+    marks_status_counts = {
+        row['assessment_marks__status']: row['count']
+        for row in internships.exclude(assessment_marks__status__isnull=True).values('assessment_marks__status').annotate(count=Count('assessment_marks'))
+    }
     
     context = {
         'total_students': len(students),
+        'total_internships': internships.count(),
         'pending_verifications': pending_verifications,
+        'verified_without_marks': verified_without_marks,
         'assignments': assignments,
+        'recent_submissions': internships.order_by('-submission_date', '-created_on')[:8],
+        'verification_chart': {
+            'labels': [label for value, label in InternshipRecord.VERIFICATION_STATUS],
+            'data': [verification_counts.get(value, 0) for value, label in InternshipRecord.VERIFICATION_STATUS],
+        },
+        'completion_chart': {
+            'labels': [label for value, label in InternshipRecord.COMPLETION_STATUS],
+            'data': [completion_counts.get(value, 0) for value, label in InternshipRecord.COMPLETION_STATUS],
+        },
+        'marks_status_chart': {
+            'labels': [label for value, label in AssessmentMarks.STATUS_CHOICES],
+            'data': [marks_status_counts.get(value, 0) for value, label in AssessmentMarks.STATUS_CHOICES],
+        },
         'active_tab': 'mentor_dashboard'
     }
     return render(request, 'mentor/dashboard.html', context)

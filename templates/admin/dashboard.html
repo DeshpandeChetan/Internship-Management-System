@@ -104,6 +104,34 @@
     </div>
 </div>
 
+<!-- Charts -->
+<div class="row g-3 g-md-4 mt-3">
+    <div class="col-lg-4 col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Internship Verification</h6></div>
+            <div class="card-body"><canvas id="verificationChart" height="150"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Internship Types</h6></div>
+            <div class="card-body"><canvas id="typeChart" height="150"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Student Status</h6></div>
+            <div class="card-body"><canvas id="studentStatusChart" height="150"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Assessment Status</h6></div>
+            <div class="card-body"><canvas id="marksStatusChart" height="150"></canvas></div>
+        </div>
+    </div>
+</div>
+
 <!-- Quick Actions -->
 <div class="row g-3 g-md-4 mt-3">
     <div class="col-12">
@@ -155,21 +183,50 @@
     </div>
 </div>
 
-<!-- Recent Activity - Optional -->
+<!-- Recent Activity -->
 <div class="row g-3 g-md-4 mt-2">
     <div class="col-12">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="fas fa-clock me-2"></i>Recent Activity</h6>
-                <span class="badge bg-primary">Coming Soon</span>
+                <h6 class="mb-0"><i class="fas fa-clock me-2"></i>Recent Internships</h6>
+                <a href="{% url 'admin_internships' %}" class="btn btn-sm btn-outline-primary">View All</a>
             </div>
-            <div class="card-body text-center text-muted py-4">
-                <i class="fas fa-chart-line fa-2x d-block mb-2"></i>
-                Activity feed will be displayed here
+            <div class="card-body">
+                {% if recent_internships %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Organisation</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for internship in recent_internships %}
+                            <tr>
+                                <td>{{ internship.student.register_number }}<br><small>{{ internship.student.name }}</small></td>
+                                <td>{{ internship.organisation.name }}</td>
+                                <td>{{ internship.get_verification_status_display }}</td>
+                                <td>{{ internship.created_on|date:"d M Y" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No internships recorded yet.</p>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+{{ verification_chart|json_script:"verification-chart-data" }}
+{{ type_chart|json_script:"type-chart-data" }}
+{{ student_status_chart|json_script:"student-status-chart-data" }}
+{{ marks_status_chart|json_script:"marks-status-chart-data" }}
 {% endblock %}
 
 {% block extra_css %}
@@ -183,4 +240,33 @@
         transform: translateY(-3px);
     }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function dashboardChart(canvasId, scriptId, type) {
+    const data = JSON.parse(document.getElementById(scriptId).textContent);
+    new Chart(document.getElementById(canvasId), {
+        type: type,
+        data: {
+            labels: data.labels,
+            datasets: [{
+                data: data.data,
+                backgroundColor: ['#1e3a8a', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#64748b'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } },
+            scales: type === 'bar' ? { y: { beginAtZero: true, ticks: { precision: 0 } } } : {}
+        }
+    });
+}
+
+dashboardChart('verificationChart', 'verification-chart-data', 'doughnut');
+dashboardChart('typeChart', 'type-chart-data', 'bar');
+dashboardChart('studentStatusChart', 'student-status-chart-data', 'doughnut');
+dashboardChart('marksStatusChart', 'marks-status-chart-data', 'bar');
+</script>
 {% endblock %}

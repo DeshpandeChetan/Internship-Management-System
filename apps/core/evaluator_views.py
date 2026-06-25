@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django import forms
 from django.http import JsonResponse
 from django.utils import timezone
+from django.db.models import Avg, Count
 from .models import InternshipRecord, AssessmentMarks, AssessmentComponent, AssessmentMarksHistory, MentorAssignment
 from .forms import AssessmentMarksForm
 from .decorators import evaluator_required
@@ -103,9 +104,27 @@ def evaluator_dashboard(request):
     """Evaluator Dashboard"""
     internships = _assessment_internships_for(request.user)
     marks = _marks_for(request.user)
+    status_counts = {
+        row['status']: row['count']
+        for row in marks.values('status').annotate(count=Count('id'))
+    }
+    component_rows = marks.values('assessment_component__assessment_type').annotate(count=Count('id')).order_by('assessment_component__assessment_type')
+    recent_marks = marks.order_by('-assessment_date', '-created_on')[:8]
     context = {
         'pending_assessments': internships.count(),
         'total_assessments': marks.count(),
+        'approved_assessments': marks.filter(status='approved').count(),
+        'locked_assessments': marks.filter(status='locked').count(),
+        'average_marks': marks.aggregate(avg=Avg('marks_awarded'))['avg'],
+        'status_chart': {
+            'labels': [label for value, label in AssessmentMarks.STATUS_CHOICES],
+            'data': [status_counts.get(value, 0) for value, label in AssessmentMarks.STATUS_CHOICES],
+        },
+        'component_chart': {
+            'labels': [dict(AssessmentComponent.ASSESSMENT_TYPES).get(row['assessment_component__assessment_type'], 'Unassigned') for row in component_rows],
+            'data': [row['count'] for row in component_rows],
+        },
+        'recent_marks': recent_marks,
         'active_tab': 'evaluator_dashboard'
     }
     return render(request, 'evaluator/dashboard.html', context)

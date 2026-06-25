@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 from django.utils import timezone
+from django.db.models import Avg, Count
 from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks, Organisation, BreakRecord
 from .decorators import student_required
 from .forms import InternshipForm, BreakForm
@@ -66,6 +67,22 @@ def student_dashboard(request):
         return redirect('profile')
 
     internships = InternshipRecord.objects.filter(student=student)
+    verification_counts = {
+        row['verification_status']: row['count']
+        for row in internships.values('verification_status').annotate(count=Count('id'))
+    }
+    completion_counts = {
+        row['completion_status']: row['count']
+        for row in internships.values('completion_status').annotate(count=Count('id'))
+    }
+    marks = AssessmentMarks.objects.filter(internship_record__student=student)
+    marks_by_internship = [
+        {
+            'label': f'{mark.internship_record.get_internship_type_display()} {mark.internship_record.internship_number}',
+            'value': float(mark.marks_awarded),
+        }
+        for mark in marks.select_related('internship_record', 'assessment_component').order_by('internship_record__internship_number', 'created_on')[:12]
+    ]
     
     context = {
         'student': student,
@@ -73,7 +90,21 @@ def student_dashboard(request):
         'completed_internships': internships.filter(completion_status='completed').count(),
         'pending_verifications': internships.filter(verification_status='submitted').count(),
         'pending_internships': internships.filter(verification_status='submitted').count(),
+        'verified_internships': internships.filter(verification_status='verified').count(),
+        'average_marks': marks.aggregate(avg=Avg('marks_awarded'))['avg'],
         'recent_internships': internships.order_by('-created_on')[:5],
+        'verification_chart': {
+            'labels': [label for value, label in InternshipRecord.VERIFICATION_STATUS],
+            'data': [verification_counts.get(value, 0) for value, label in InternshipRecord.VERIFICATION_STATUS],
+        },
+        'completion_chart': {
+            'labels': [label for value, label in InternshipRecord.COMPLETION_STATUS],
+            'data': [completion_counts.get(value, 0) for value, label in InternshipRecord.COMPLETION_STATUS],
+        },
+        'marks_chart': {
+            'labels': [item['label'] for item in marks_by_internship],
+            'data': [item['value'] for item in marks_by_internship],
+        },
         'active_tab': 'student_dashboard'
     }
     return render(request, 'student/dashboard.html', context)

@@ -86,6 +86,23 @@ from apps.utils.notifications import send_notification
 @user_passes_test(is_admin)
 def admin_dashboard(request):
     """Admin Dashboard with statistics"""
+    verification_counts = {
+        row['verification_status']: row['count']
+        for row in InternshipRecord.objects.values('verification_status').annotate(count=Count('id'))
+    }
+    type_counts = {
+        row['internship_type']: row['count']
+        for row in InternshipRecord.objects.values('internship_type').annotate(count=Count('id'))
+    }
+    student_status_counts = {
+        row['status']: row['count']
+        for row in Student.objects.values('status').annotate(count=Count('id'))
+    }
+    marks_status_counts = {
+        row['status']: row['count']
+        for row in AssessmentMarks.objects.values('status').annotate(count=Count('id'))
+    }
+
     context = {
         'active_tab': 'admin_dashboard',
         'total_users': UserProfile.objects.count(),
@@ -99,8 +116,22 @@ def admin_dashboard(request):
         'pending_approvals': InternshipRecord.objects.filter(verification_status='verified', completion_status='pending').count(),
         'recent_students': Student.objects.all().order_by('-created_on')[:10],
         'recent_internships': InternshipRecord.objects.all().order_by('-created_on')[:10],
-        'internship_by_status': InternshipRecord.objects.values('verification_status').annotate(count=Count('id')),
-        'internship_by_type': InternshipRecord.objects.values('internship_type').annotate(count=Count('id')),
+        'verification_chart': {
+            'labels': [label for value, label in InternshipRecord.VERIFICATION_STATUS],
+            'data': [verification_counts.get(value, 0) for value, label in InternshipRecord.VERIFICATION_STATUS],
+        },
+        'type_chart': {
+            'labels': [label for value, label in InternshipRecord.INTERNSHIP_TYPES],
+            'data': [type_counts.get(value, 0) for value, label in InternshipRecord.INTERNSHIP_TYPES],
+        },
+        'student_status_chart': {
+            'labels': [label for value, label in Student.STATUS_CHOICES],
+            'data': [student_status_counts.get(value, 0) for value, label in Student.STATUS_CHOICES],
+        },
+        'marks_status_chart': {
+            'labels': [label for value, label in AssessmentMarks.STATUS_CHOICES],
+            'data': [marks_status_counts.get(value, 0) for value, label in AssessmentMarks.STATUS_CHOICES],
+        },
     }
     return render(request, 'admin/dashboard.html', context)
 

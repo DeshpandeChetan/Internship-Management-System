@@ -3,25 +3,33 @@
 {% block page_title %}HOD Dashboard{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-4">
-        <div class="card stat-card">
+<div class="row g-3 g-md-4">
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card h-100">
             <div class="card-body">
-                <h6 class="text-muted">Total Students</h6>
+                <h6 class="text-muted">Students</h6>
                 <h2 class="mb-0">{{ total_students }}</h2>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card stat-card">
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card h-100">
             <div class="card-body">
-                <h6 class="text-muted">Completed Internships</h6>
+                <h6 class="text-muted">Internships</h6>
+                <h2 class="mb-0">{{ total_internships }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <h6 class="text-muted">Completed</h6>
                 <h2 class="mb-0">{{ completed_internships }}</h2>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card stat-card">
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card h-100">
             <div class="card-body">
                 <h6 class="text-muted">Pending Approvals</h6>
                 <h2 class="mb-0">{{ pending_approvals }}</h2>
@@ -30,37 +38,118 @@
     </div>
 </div>
 
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h6>Quick Actions</h6>
+<div class="row g-3 g-md-4 mt-3">
+    <div class="col-lg-4 col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Verification Status</h6></div>
+            <div class="card-body"><canvas id="hodVerificationChart" height="150"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Completion Status</h6></div>
+            <div class="card-body"><canvas id="hodCompletionChart" height="150"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Students by Programme</h6></div>
+            <div class="card-body"><canvas id="hodProgrammeChart" height="150"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Assessment Status</h6></div>
+            <div class="card-body"><canvas id="hodMarksChart" height="150"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 g-md-4 mt-3">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Recent Department Internships</h6>
+                <a href="{% url 'hod_approvals' %}" class="btn btn-sm btn-outline-warning">Approvals</a>
             </div>
             <div class="card-body">
-                <div class="row g-2">
-                    <div class="col-6">
-                        <a href="{% url 'hod_students' %}" class="btn btn-primary w-100">
-                            <i class="fas fa-user-graduate"></i> Students
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{% url 'hod_consolidated_report' %}" class="btn btn-success w-100">
-                            <i class="fas fa-chart-bar"></i> Consolidated Report
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{% url 'hod_approvals' %}" class="btn btn-warning w-100">
-                            <i class="fas fa-check-circle"></i> Approvals
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{% url 'hod_reports' %}" class="btn btn-info w-100">
-                            <i class="fas fa-file-alt"></i> All Reports
-                        </a>
-                    </div>
+                {% if recent_internships %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Organisation</th>
+                                <th>Completion</th>
+                                <th>Verification</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for internship in recent_internships %}
+                            <tr>
+                                <td>{{ internship.student.register_number }}<br><small>{{ internship.student.name }}</small></td>
+                                <td>{{ internship.organisation.name }}</td>
+                                <td>{{ internship.get_completion_status_display }}</td>
+                                <td>{{ internship.get_verification_status_display }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
+                {% else %}
+                <p class="text-muted mb-0">No internships found for this scope.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Quick Actions</h6></div>
+            <div class="card-body d-grid gap-2">
+                <a href="{% url 'hod_students' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-user-graduate me-2"></i>Students
+                </a>
+                <a href="{% url 'hod_consolidated_report' %}" class="btn btn-outline-success">
+                    <i class="fas fa-chart-bar me-2"></i>Consolidated Report
+                </a>
+                <a href="{% url 'hod_reports' %}" class="btn btn-outline-info">
+                    <i class="fas fa-file-alt me-2"></i>Reports
+                </a>
             </div>
         </div>
     </div>
 </div>
+
+{{ verification_chart|json_script:"hod-verification-chart-data" }}
+{{ completion_chart|json_script:"hod-completion-chart-data" }}
+{{ programme_chart|json_script:"hod-programme-chart-data" }}
+{{ marks_status_chart|json_script:"hod-marks-chart-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function renderHodChart(canvasId, scriptId, type) {
+    const data = JSON.parse(document.getElementById(scriptId).textContent);
+    new Chart(document.getElementById(canvasId), {
+        type: type,
+        data: {
+            labels: data.labels,
+            datasets: [{
+                data: data.data,
+                backgroundColor: ['#1e3a8a', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#64748b']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } },
+            scales: type === 'bar' ? { y: { beginAtZero: true, ticks: { precision: 0 } } } : {}
+        }
+    });
+}
+
+renderHodChart('hodVerificationChart', 'hod-verification-chart-data', 'doughnut');
+renderHodChart('hodCompletionChart', 'hod-completion-chart-data', 'bar');
+renderHodChart('hodProgrammeChart', 'hod-programme-chart-data', 'bar');
+renderHodChart('hodMarksChart', 'hod-marks-chart-data', 'doughnut');
+</script>
 {% endblock %}

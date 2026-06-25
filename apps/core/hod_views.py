@@ -1,17 +1,58 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from .models import Student, InternshipRecord, ConsolidatedScore
+from django.db.models import Count
+from .models import Student, InternshipRecord, ConsolidatedScore, AssessmentMarks
 from .decorators import hod_required
 from apps.utils.calculations import calculate_student_consolidated_marks
 
 @hod_required
 def hod_dashboard(request):
     """HOD Dashboard"""
+    students = Student.objects.select_related('department', 'programme', 'batch')
+    internships = InternshipRecord.objects.select_related('student', 'organisation')
+    if request.user.profile.department_id:
+        students = students.filter(department=request.user.profile.department)
+        internships = internships.filter(student__department=request.user.profile.department)
+
+    verification_counts = {
+        row['verification_status']: row['count']
+        for row in internships.values('verification_status').annotate(count=Count('id'))
+    }
+    completion_counts = {
+        row['completion_status']: row['count']
+        for row in internships.values('completion_status').annotate(count=Count('id'))
+    }
+    programme_rows = students.values('programme__code').annotate(count=Count('id')).order_by('programme__code')
+    marks = AssessmentMarks.objects.filter(internship_record__in=internships)
+    marks_status_counts = {
+        row['status']: row['count']
+        for row in marks.values('status').annotate(count=Count('id'))
+    }
+
     context = {
-        'total_students': Student.objects.count(),
-        'completed_internships': InternshipRecord.objects.filter(completion_status='completed').count(),
-        'pending_approvals': 0,  # Add logic
+        'total_students': students.count(),
+        'total_internships': internships.count(),
+        'completed_internships': internships.filter(completion_status='completed').count(),
+        'pending_approvals': internships.filter(verification_status='verified', completion_status='pending').count(),
+        'pending_verifications': internships.filter(verification_status='submitted').count(),
+        'verification_chart': {
+            'labels': [label for value, label in InternshipRecord.VERIFICATION_STATUS],
+            'data': [verification_counts.get(value, 0) for value, label in InternshipRecord.VERIFICATION_STATUS],
+        },
+        'completion_chart': {
+            'labels': [label for value, label in InternshipRecord.COMPLETION_STATUS],
+            'data': [completion_counts.get(value, 0) for value, label in InternshipRecord.COMPLETION_STATUS],
+        },
+        'programme_chart': {
+            'labels': [row['programme__code'] or 'Unassigned' for row in programme_rows],
+            'data': [row['count'] for row in programme_rows],
+        },
+        'marks_status_chart': {
+            'labels': [label for value, label in AssessmentMarks.STATUS_CHOICES],
+            'data': [marks_status_counts.get(value, 0) for value, label in AssessmentMarks.STATUS_CHOICES],
+        },
+        'recent_internships': internships.order_by('-created_on')[:8],
         'active_tab': 'hod_dashboard'
     }
     return render(request, 'hod/dashboard.html', context)

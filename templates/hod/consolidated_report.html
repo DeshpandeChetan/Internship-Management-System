@@ -6,9 +6,9 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h5 class="mb-0">Consolidated Marks Report</h5>
-        <form method="get" class="d-flex align-items-center gap-2">
+        <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
             <label class="form-label mb-0">Top scored internships</label>
-            <input type="number" name="top_n" class="form-control form-control-sm" value="{{ selected_top_n }}" min="1" max="8" style="width: 90px;">
+            <input type="number" name="top_n" class="form-control form-control-sm" value="{{ selected_top_n }}" min="1" max="8" style="max-width: 90px;">
             <button type="submit" class="btn btn-sm btn-primary">
                 <i class="fas fa-sync-alt me-1"></i>Recalculate
             </button>

@@ -10,19 +10,56 @@
         #internshipsTable td:last-child { overflow: visible !important; }
         .dataTables_wrapper { width: 100% !important; overflow: visible !important; }
         .data-table-wrapper { overflow: visible !important; }
+        .student-internships-card,
+        .student-internships-card .card-body,
+        .table-responsive {
+            overflow: visible !important;
+        }
     }
     @media (max-width: 768px) {
         .dataTables_wrapper { overflow-x: auto !important; }
         .table-responsive { overflow-x: auto !important; }
+        .dataTables_wrapper .row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_paginate {
+            width: 100%;
+            text-align: left !important;
+            justify-content: flex-start !important;
+        }
+        .dataTables_wrapper .dataTables_filter label { justify-content: flex-start; }
+        .dataTables_wrapper .dataTables_filter input { width: 100% !important; }
+    }
+    .dataTables_wrapper .dataTables_filter {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 12px;
+    }
+    .dataTables_wrapper .dataTables_filter label {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 0;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        width: 260px !important;
+        max-width: 100%;
+        border-radius: 8px;
+        border: 1px solid #ced4da;
+        padding: 6px 12px;
+        margin-left: 0 !important;
     }
     .dropdown-menu { z-index: 9999 !important; position: absolute; }
-    .student-internships-card,
-    .student-internships-card .card-body,
-    .data-table-wrapper,
-    .dataTables_wrapper,
-    .table-responsive {
-        overflow: visible !important;
-    }
 </style>
 {% endblock %}
 
@@ -381,7 +418,16 @@
     }
 
     $(document).ready(function() {
-        $('#internshipsTable').DataTable();
+        $('#internshipsTable').DataTable({
+            responsive: false,
+            autoWidth: true,
+            order: [[3, 'desc']],
+            columnDefs: [{ targets: -1, orderable: false, searchable: false }],
+            language: { search: "", searchPlaceholder: "Search internships..." },
+            dom: "<'row align-items-center g-2 mb-3'<'col-12 col-md-6'l><'col-12 col-md-6'f>>" +
+                 "<'row'<'col-12'tr>>" +
+                 "<'row align-items-center g-2 mt-3'<'col-12 col-md-5'i><'col-12 col-md-7'p>>"
+        });
     });
 </script>
 {% endblock %}

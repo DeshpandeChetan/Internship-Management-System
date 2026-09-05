@@ -41,18 +41,20 @@
                     <label class="form-label">Faculty Remarks</label>
                     <textarea name="remarks" class="form-control" rows="3" placeholder="Add verification remarks or correction notes">{{ internship.remarks }}</textarea>
                 </div>
-                <button type="submit" name="action" value="verified" class="btn btn-success">
-                    <i class="fas fa-check"></i> Verified
-                </button>
-                <button type="submit" name="action" value="needs_correction" class="btn btn-warning">
-                    <i class="fas fa-edit"></i> Needs Correction
-                </button>
-                <button type="submit" name="action" value="rejected" class="btn btn-danger">
-                    <i class="fas fa-times"></i> Rejected
-                </button>
-                <a href="{% url 'mentor_pending_verification' %}" class="btn btn-secondary">
-                    Cancel
-                </a>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" name="action" value="verified" class="btn btn-success">
+                        <i class="fas fa-check"></i> Verified
+                    </button>
+                    <button type="submit" name="action" value="needs_correction" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Needs Correction
+                    </button>
+                    <button type="submit" name="action" value="rejected" class="btn btn-danger">
+                        <i class="fas fa-times"></i> Rejected
+                    </button>
+                    <a href="{% url 'mentor_pending_verification' %}" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                </div>
             </form>
         </div>
     </div>

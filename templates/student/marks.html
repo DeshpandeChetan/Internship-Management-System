@@ -28,7 +28,7 @@
                                 <td>{{ mark.marks_awarded }}/{{ mark.maximum_marks }}</td>
                                 <td>{{ mark.assessment_date|date:"d M Y"|default:"-" }}</td>
                                 <td>{{ mark.get_status_display }}</td>
-                                <td>{{ mark.remarks|default:"-" }}</td>
+                                <td>{{ mark.remarks|default:"-"|truncatechars:60 }}</td>
                             </tr>
                             {% empty %}
                             <tr>

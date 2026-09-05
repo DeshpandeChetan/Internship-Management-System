@@ -3,13 +3,13 @@
 {% block page_title %}Organisation Details{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h3>{{ organisation.name }}</h3>
+        <h3 class="text-break">{{ organisation.name }}</h3>
         <p class="text-muted mb-0">{{ organisation.get_organisation_type_display }} | {{ organisation.city }}, {{ organisation.state }}</p>
     </div>
-    <div>
-        <a href="{% url 'admin_edit_organisation' organisation.id %}" class="btn btn-warning me-2">Edit</a>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'admin_edit_organisation' organisation.id %}" class="btn btn-warning">Edit</a>
         <a href="{% url 'admin_toggle_organisation' organisation.id %}" class="btn btn-outline-secondary">{% if organisation.status == 'active' %}Deactivate{% else %}Activate{% endif %}</a>
     </div>
 </div>

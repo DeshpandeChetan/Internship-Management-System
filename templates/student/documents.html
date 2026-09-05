@@ -18,7 +18,7 @@
                 <tbody>
                     {% for document in documents %}
                         <tr>
-                            <td>{{ document.file.name }}</td>
+                            <td><span class="d-inline-block text-truncate" style="max-width: 220px;" title="{{ document.file.name }}">{{ document.file.name }}</span></td>
                             <td>{{ document.uploaded_at }}</td>
                             <td>{% if document.internship_record %}{{ document.internship_record.organisation.name }}{% else %}-{% endif %}</td>
                             <td><a href="{{ document.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">Download</a></td>

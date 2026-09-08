@@ -221,6 +221,19 @@ class InternshipRecord(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
     
+    class Meta:
+        constraints = [
+            # Only regular (1-8) and assessment internships must have a unique
+            # number per student at the database level - additional/repeated
+            # internships are intentionally allowed to reuse a number (e.g. a
+            # student repeating "Internship 3" more than once).
+            models.UniqueConstraint(
+                fields=['student', 'internship_type', 'internship_number'],
+                condition=models.Q(internship_type__in=['regular', 'assessment']),
+                name='unique_internship_number_per_type_per_student',
+            )
+        ]
+
     @property
     def duration(self):
         if self.start_date and self.end_date:
@@ -292,6 +305,10 @@ class MentorAssignment(models.Model):
     reason_for_change = models.TextField(blank=True)
     assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='assigned_mentors')
     is_active = models.BooleanField(default=True)
+    allow_co_mentor = models.BooleanField(
+        default=False,
+        help_text="Allow another active mentor assignment to overlap with this one for the same student/scope."
+    )
     remarks = models.TextField(blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)

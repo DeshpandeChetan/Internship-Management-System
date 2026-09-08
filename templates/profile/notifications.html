@@ -6,20 +6,23 @@
 <div class="row">
     <div class="col-lg-10">
         <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h4 class="mb-0">Notifications</h4>
+                {% if notifications %}
+                <a href="{% url 'notification_mark_all_read' %}" class="btn btn-sm btn-light">Mark all as read</a>
+                {% endif %}
             </div>
             <div class="card-body">
                 {% if notifications %}
                     <ul class="list-group">
                         {% for note in notifications %}
-                        <li class="list-group-item d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="mb-1">{{ note.title }}</h6>
-                                <p class="mb-1 text-muted">{{ note.message }}</p>
+                        <li class="list-group-item d-flex justify-content-between align-items-start {% if not note.is_read %}list-group-item-light fw-semibold{% endif %}">
+                            <a href="{% url 'notification_mark_read' note.id %}" class="text-decoration-none text-dark flex-grow-1">
+                                <h6 class="mb-1">{% if not note.is_read %}<i class="fas fa-circle text-primary me-1" style="font-size:0.5rem;"></i>{% endif %}{{ note.title }}</h6>
+                                <p class="mb-1 text-muted fw-normal">{{ note.message }}</p>
                                 <small class="text-muted">{{ note.created_at|date:'M d, Y H:i' }}</small>
-                            </div>
-                            <span class="badge bg-{{ note.notification_type }} rounded-pill">{{ note.get_notification_type_display }}</span>
+                            </a>
+                            <span class="badge {% if note.notification_type == 'error' %}bg-danger{% else %}bg-{{ note.notification_type }}{% endif %} rounded-pill">{{ note.get_notification_type_display }}</span>
                         </li>
                         {% endfor %}
                     </ul>

@@ -239,6 +239,10 @@
                             <label class="form-label">Related Semester</label>
                             <input type="text" name="related_semester" id="edit_related_semester" class="form-control">
                         </div>
+                        <div class="col-md-12 mb-3 form-check">
+                            <input type="checkbox" name="allow_co_mentor" id="edit_allow_co_mentor" class="form-check-input">
+                            <label class="form-check-label" for="edit_allow_co_mentor">Allow co-mentoring (permit another active mentor to overlap for this student/scope)</label>
+                        </div>
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Reason for Change</label>
                             <textarea name="reason_for_change" id="edit_reason_for_change" class="form-control" rows="2"></textarea>
@@ -310,6 +314,10 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Related Semester</label>
                             <input type="text" name="related_semester" class="form-control">
+                        </div>
+                        <div class="col-md-12 mb-3 form-check">
+                            <input type="checkbox" name="allow_co_mentor" id="add_allow_co_mentor" class="form-check-input">
+                            <label class="form-check-label" for="add_allow_co_mentor">Allow co-mentoring (permit another active mentor to overlap for this student/scope)</label>
                         </div>
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Reason for Change</label>
@@ -453,6 +461,7 @@ function editAssignment(id) {
             $('#edit_effective_to').val(data.effective_to);
             $('#edit_assignment_level').val(data.assignment_level);
             $('#edit_related_semester').val(data.related_semester);
+            $('#edit_allow_co_mentor').prop('checked', data.allow_co_mentor);
             $('#edit_reason_for_change').val(data.reason_for_change);
             $('#edit_remarks').val(data.remarks);
             

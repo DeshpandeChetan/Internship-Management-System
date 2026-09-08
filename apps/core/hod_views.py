@@ -5,6 +5,7 @@ from django.db.models import Count
 from .models import Student, InternshipRecord, ConsolidatedScore, AssessmentMarks
 from .decorators import hod_required
 from apps.utils.calculations import calculate_student_consolidated_marks
+from apps.utils.audit import log_action
 
 @hod_required
 def hod_dashboard(request):
@@ -68,7 +69,10 @@ def student_list(request):
 @hod_required
 def reports(request):
     """Reports page"""
-    return render(request, 'admin/reports.html', {'active_tab': 'hod_reports'})
+    from . import admin_views
+    context = {'active_tab': 'hod_reports'}
+    context.update(admin_views._report_filter_context())
+    return render(request, 'admin/reports.html', context)
 
 @hod_required
 def consolidated_report(request):
@@ -102,21 +106,6 @@ def consolidated_report(request):
     })
 
 @hod_required
-def batch_report(request):
-    """Batch-wise report"""
-    return render(request, 'hod/batch_report.html')
-
-@hod_required
-def organisation_report(request):
-    """Organisation-wise report"""
-    return render(request, 'hod/organisation_report.html')
-
-@hod_required
-def mentor_report(request):
-    """Mentor-wise report"""
-    return render(request, 'hod/mentor_report.html')
-
-@hod_required
 def approvals(request):
     """Pending approvals"""
     internships = InternshipRecord.objects.filter(
@@ -127,11 +116,23 @@ def approvals(request):
 
 @hod_required
 def approve_record(request, pk):
-    """Approve record"""
+    """Approve record.
+
+    NOTE: 'approved' is not a valid InternshipRecord.verification_status choice
+    (draft/submitted/verified/needs_correction/rejected). The `approvals()`
+    queue above lists records that are already verification_status='verified'
+    but still completion_status='pending' - so HoD approval here finalizes
+    completion, not verification, which was already done by the mentor.
+    """
     record = get_object_or_404(InternshipRecord, pk=pk)
     if request.method == 'POST':
-        record.verification_status = 'approved'
-        record.save()
+        old_completion_status = record.completion_status
+        record.completion_status = 'completed'
+        record.save(update_fields=['completion_status', 'updated_on'])
+        log_action(
+            request, 'APPROVE', 'InternshipRecord', record_id=record.id,
+            old_value=old_completion_status, new_value=record.completion_status
+        )
         messages.success(request, 'Record approved successfully!')
         return redirect('hod_approvals')
     return render(request, 'hod/approve.html', {'record': record})
@@ -141,8 +142,13 @@ def reject_record(request, pk):
     """Reject record"""
     record = get_object_or_404(InternshipRecord, pk=pk)
     if request.method == 'POST':
+        old_status = record.verification_status
         record.verification_status = 'rejected'
         record.save()
+        log_action(
+            request, 'REJECT', 'InternshipRecord', record_id=record.id,
+            old_value=old_status, new_value=record.verification_status
+        )
         messages.success(request, 'Record rejected!')
         return redirect('hod_approvals')
     return render(request, 'hod/reject.html', {'record': record})

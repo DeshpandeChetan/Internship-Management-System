@@ -124,13 +124,15 @@
 
 # apps/core/views.py
 
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
-from .models import Student, InternshipRecord, AssessmentMarks, MentorAssignment, ConsolidatedScore
+from django.http import JsonResponse
+from .models import Student, InternshipRecord, AssessmentMarks, MentorAssignment, ConsolidatedScore, Notification
 from apps.utils.report_generator import generate_excel_report, generate_pdf_report
 from apps.utils.calculations import calculate_student_consolidated_marks
+from apps.utils.audit import log_action
 
 
 @login_required
@@ -258,15 +260,20 @@ def export_report(request, report_type):
     if role in ['admin', 'hod']:
         from . import admin_views
         consolidated_students = Student.objects.select_related('programme')
+        department = None
         if role == 'hod' and request.user.profile.department_id:
-            consolidated_students = consolidated_students.filter(department=request.user.profile.department)
+            department = request.user.profile.department
+            consolidated_students = consolidated_students.filter(department=department)
+        consolidated_students = admin_views._filter_students_qs(consolidated_students, request)
 
         report_map = {
-            'student': (admin_views._student_report_rows(), ['Register No', 'Name', 'Programme', 'Batch', 'Degree Start', 'Degree End', 'Status', 'Internships', 'Breaks'], 'student_report'),
-            'internship': (admin_views._internship_report_rows(), ['Register No', 'Student', 'Type', 'Number', 'Organisation', 'Start Date', 'End Date', 'Completion', 'Verification', 'Viva Marks'], 'internship_report'),
-            'organisation': (admin_views._organisation_report_rows(), ['Organisation', 'Type', 'Location', 'Area of Work', 'Status', 'Student Count', 'Internship Count'], 'organisation_report'),
-            'mentor': (admin_views._mentor_report_rows(), ['Register No', 'Student', 'Faculty Mentor', 'Effective From', 'Effective To', 'Semester', 'Level', 'Active'], 'mentor_assignment_report'),
-            'break': (admin_views._break_report_rows(), ['Register No', 'Student', 'Break Type', 'Start Date', 'End Date', 'Approved By', 'Overlapping Internships'], 'break_report'),
+            'student': (admin_views._student_report_rows(request), ['Register No', 'Name', 'Programme', 'Batch', 'Degree Start', 'Degree End', 'Status', 'Internships', 'Breaks', 'Current Mentor', 'Remarks'], 'student_report'),
+            'internship': (admin_views._internship_report_rows(request), ['Register No', 'Student', 'Type', 'Number', 'Organisation', 'Start Date', 'End Date', 'Completion', 'Verification', 'Viva Marks'], 'internship_report'),
+            'organisation': (admin_views._organisation_report_rows(request), ['Organisation', 'Type', 'Location', 'Area of Work', 'Status', 'Student Count', 'Internship Count'], 'organisation_report'),
+            'mentor': (admin_views._mentor_report_rows(request, department=department), ['Register No', 'Student', 'Faculty Mentor', 'Effective From', 'Effective To', 'Semester', 'Level', 'Active'], 'mentor_assignment_report'),
+            'break': (admin_views._break_report_rows(request), ['Register No', 'Student', 'Break Type', 'Start Date', 'End Date', 'Approved By', 'Overlapping Internships'], 'break_report'),
+            'pending_marks': (admin_views._pending_marks_report_rows(request), ['Register No', 'Student', 'Type', 'Number', 'Organisation', 'Verified On', 'Days Pending'], 'pending_marks_report'),
+            'pending_document': (admin_views._pending_documents_report_rows(request), ['Register No', 'Student', 'Type', 'Number', 'Missing Documents'], 'pending_documents_report'),
             'consolidated': (_consolidated_report_rows(consolidated_students, top_n), ['Register No', 'Student', 'Regular Average', 'Top N Average', 'Assessment Score', 'Final Score', 'Formula', 'Intermediate Included', 'Missing Marks'], 'consolidated_marks_report'),
         }
     elif role == 'student':
@@ -299,6 +306,7 @@ def export_report(request, report_type):
         return HttpResponse(f"Unknown report type: {report_type}", status=400)
 
     data, headers, filename = report_map[report_type]
+    log_action(request, 'EXPORT', f'{report_type}_report', new_value=f'format={export_format}')
     if export_format == 'pdf':
         table_rows = [[row.get(header, '') for header in headers] for row in data]
         return generate_pdf_report(f"{report_type.title()} Report", headers, table_rows, filename)
@@ -421,6 +429,40 @@ def _consolidated_report_rows(students=None, top_n=None):
             'Missing Marks': '; '.join(data.get('missing_marks') or []),
         })
     return rows
+
+
+@login_required
+def notifications_list(request):
+    """Full notifications page (linked from the navbar bell icon)."""
+    notifications = request.user.notifications.all()[:100]
+    return render(request, 'profile/notifications.html', {
+        'notifications': notifications,
+        'active_tab': 'notifications',
+    })
+
+
+@login_required
+def notification_mark_read(request, pk):
+    """Mark a single notification as read, then follow its link (if any)."""
+    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+    if not notification.is_read:
+        notification.is_read = True
+        notification.save(update_fields=['is_read'])
+    if request.GET.get('next'):
+        return redirect(request.GET.get('next'))
+    if notification.link:
+        return redirect(notification.link)
+    return redirect('notifications')
+
+
+@login_required
+def notification_mark_all_read(request):
+    """Mark every unread notification for this user as read."""
+    request.user.notifications.filter(is_read=False).update(is_read=True)
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({'success': True})
+    messages.success(request, 'All notifications marked as read.')
+    return redirect('notifications')
 
 
 def handler404(request, exception):

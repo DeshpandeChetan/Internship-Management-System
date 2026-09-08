@@ -1,11 +1,14 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Count
 from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks
 from .decorators import mentor_required
 from .display import user_name_with_role
+from apps.utils.audit import log_action
+from apps.utils.notifications import send_notification, send_bulk_notification
 
 
 def get_assigned_student_ids(request):
@@ -175,12 +178,38 @@ def verify_internship(request, pk):
             messages.error(request, 'Please mention what changes are required.')
             return redirect(request.META.get('HTTP_REFERER', 'mentor_pending_verification'))
 
+        old_status = internship.verification_status
         internship.verification_status = action
         internship.verified_by = request.user
         internship.verified_at = timezone.now()
         if remarks:
             internship.remarks = remarks
         internship.save()
+
+        log_action(
+            request, 'VERIFY', 'InternshipRecord', record_id=internship.id,
+            old_value=old_status, new_value=internship.verification_status
+        )
+
+        if action == 'needs_correction' and internship.student.user_id:
+            send_notification(
+                internship.student.user,
+                'Internship Needs Correction',
+                f'Your {internship.get_internship_type_display()} #{internship.internship_number} '
+                f'({internship.organisation.name}) was sent back for correction: {remarks}',
+                'warning',
+                link='/dashboard/student/internships/'
+            )
+        elif action == 'verified':
+            evaluator_users = User.objects.filter(profile__role='evaluator', profile__is_active=True)
+            send_bulk_notification(
+                evaluator_users,
+                'Marks Pending',
+                f'{internship.student.name} ({internship.student.register_number}) - '
+                f'{internship.get_internship_type_display()} #{internship.internship_number} is verified and ready for marks entry.',
+                'info'
+            )
+
         messages.success(request, f'Internship marked as {internship.get_verification_status_display()}.')
         return redirect(request.META.get('HTTP_REFERER', 'mentor_pending_verification'))
     return render(request, 'mentor/verify_internship.html', {'internship': internship})

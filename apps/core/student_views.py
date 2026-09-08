@@ -9,6 +9,21 @@ from .decorators import student_required
 from .forms import InternshipForm, BreakForm
 from .display import user_name_with_role
 from apps.utils.calculations import calculate_student_consolidated_marks
+from apps.utils.audit import log_action
+from apps.utils.notifications import send_notification
+
+
+def _notify_mentor_of_submission(student, internship):
+    assignment = MentorAssignment.objects.filter(student=student, is_active=True).select_related('faculty_mentor__user').first()
+    if assignment and assignment.faculty_mentor.user_id:
+        send_notification(
+            assignment.faculty_mentor.user,
+            'New Internship Submission',
+            f'{student.name} ({student.register_number}) submitted {internship.get_internship_type_display()} '
+            f'#{internship.internship_number} for verification.',
+            'info',
+            link='/dashboard/mentor/pending-verification/'
+        )
 
 
 def get_logged_in_student(request):
@@ -145,6 +160,11 @@ def internship_add(request):
             internship.verification_status = 'submitted'
             internship.submission_date = internship.submission_date or timezone.now().date()
             internship.save()
+            log_action(
+                request, 'CREATE', 'InternshipRecord', record_id=internship.id,
+                new_value=f'{internship.internship_type} #{internship.internship_number} submitted'
+            )
+            _notify_mentor_of_submission(student, internship)
             messages.success(request, 'Internship record submitted for faculty verification!')
             return redirect('my_internships')
         for field, errors in form.errors.items():
@@ -206,6 +226,7 @@ def internship_edit(request, pk):
         student=student,
         verification_status__in=['draft', 'needs_correction', 'rejected']
     )
+    old_status = internship.verification_status
     if request.method == 'POST':
         form = student_internship_form(request.POST, request.FILES, instance=internship, student=student)
         if form.is_valid():
@@ -216,6 +237,11 @@ def internship_edit(request, pk):
             internship.updated_by = request.user
             internship.submission_date = internship.submission_date or timezone.now().date()
             internship.save()
+            log_action(
+                request, 'UPDATE', 'InternshipRecord', record_id=internship.id,
+                old_value=old_status, new_value=internship.verification_status
+            )
+            _notify_mentor_of_submission(student, internship)
             messages.success(request, 'Internship updated and submitted for faculty verification!')
             return redirect('my_internships')
         for field, errors in form.errors.items():
@@ -337,6 +363,10 @@ def break_add(request):
             break_record.student = student
             break_record.approved_by = None
             break_record.save()
+            log_action(
+                request, 'CREATE', 'BreakRecord', record_id=break_record.id,
+                new_value=f'{student.register_number} - {break_record.get_break_type_display()}'
+            )
             messages.success(request, 'Break record submitted successfully!')
             return redirect('student_breaks')
     else:

@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django import forms
 from django.http import JsonResponse
 from django.utils import timezone
@@ -10,6 +11,36 @@ from django.db.models import Avg, Count
 from .models import InternshipRecord, AssessmentMarks, AssessmentComponent, AssessmentMarksHistory, MentorAssignment
 from .forms import AssessmentMarksForm
 from .decorators import evaluator_required
+from apps.utils.audit import log_action
+from apps.utils.notifications import send_notification, send_bulk_notification
+
+
+def _notify_on_status_change(marks, old_status, request):
+    """Fire the two SRS notification triggers tied to marks status transitions."""
+    new_status = marks.status
+    if new_status == old_status:
+        return
+    if new_status == 'submitted':
+        admin_users = User.objects.filter(profile__role='admin', profile__is_active=True)
+        send_bulk_notification(
+            admin_users,
+            'Marks Ready for Approval',
+            f'{marks.internship_record.student.name} ({marks.internship_record.student.register_number}) - '
+            f'{marks.assessment_component.name} marks are submitted and awaiting approval.',
+            'info'
+        )
+    elif new_status == 'approved':
+        student_user = marks.internship_record.student.user
+        if student_user:
+            send_notification(
+                student_user,
+                'Final Marks Approved',
+                f'Your {marks.assessment_component.name} marks for '
+                f'{marks.internship_record.get_internship_type_display()} #{marks.internship_record.internship_number} '
+                f'have been approved.',
+                'success',
+                link='/dashboard/student/marks/'
+            )
 
 
 def _can_access_assessment(user):
@@ -168,6 +199,11 @@ def enter_marks(request, pk):
                 marks.locked_by = request.user
                 marks.locked_at = timezone.now()
             marks.save()
+            log_action(
+                request, 'CREATE', 'AssessmentMarks', record_id=marks.id,
+                new_value=f'{marks.assessment_component.name}: {marks.marks_awarded}/{marks.maximum_marks} ({marks.status})'
+            )
+            _notify_on_status_change(marks, old_status='draft', request=request)
             messages.success(request, 'Assessment marks saved successfully!')
             return redirect('evaluator_history')
         for field, errors in form.errors.items():
@@ -208,6 +244,11 @@ def edit_marks(request, pk):
                     new_values=new_values,
                     remarks=request.POST.get('edit_reason', '').strip()
                 )
+                log_action(
+                    request, 'UPDATE', 'AssessmentMarks', record_id=updated.id,
+                    old_value=old_values, new_value=new_values
+                )
+                _notify_on_status_change(updated, old_values.get('status'), request)
             messages.success(request, 'Marks updated successfully!')
             return redirect('evaluator_history')
         for field, errors in form.errors.items():
@@ -232,12 +273,17 @@ def lock_marks(request, pk):
     marks.locked_by = request.user
     marks.locked_at = timezone.now()
     marks.save(update_fields=['status', 'locked_by', 'locked_at', 'updated_on'])
+    new_values = _snapshot(marks)
     AssessmentMarksHistory.objects.create(
         assessment_marks=marks,
         edited_by=request.user,
         old_values=old_values,
-        new_values=_snapshot(marks),
+        new_values=new_values,
         remarks='Marks locked after approval.'
+    )
+    log_action(
+        request, 'LOCK', 'AssessmentMarks', record_id=marks.id,
+        old_value=old_values, new_value=new_values
     )
     messages.success(request, 'Marks locked successfully.')
     return redirect('evaluator_history')

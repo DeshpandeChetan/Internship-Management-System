@@ -14,11 +14,17 @@ urlpatterns = [
     # Profile
     path('profile/', views.profile_view, name='profile'),
     path('profile/update/', views.profile_update, name='profile_update'),
+
+    # Notifications
+    path('notifications/', views.notifications_list, name='notifications'),
+    path('notifications/<uuid:pk>/read/', views.notification_mark_read, name='notification_mark_read'),
+    path('notifications/mark-all-read/', views.notification_mark_all_read, name='notification_mark_all_read'),
     
     # ============================================
     # ADMIN URLS
     # ============================================
     path('admin/dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
+    path('admin/audit-logs/', admin_views.audit_logs, name='admin_audit_logs'),
     
     # User Management
     # path('admin/users/', admin_views.user_list, name='admin_users'),

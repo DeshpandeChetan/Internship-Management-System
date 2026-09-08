@@ -316,29 +316,65 @@
             </div>
 
             {% if user.is_authenticated %}
-            <div class="dropdown">
-                <a href="#" class="d-flex align-items-center gap-3 text-decoration-none text-dark"
-                    data-bs-toggle="dropdown">
-                    <div class="fw-semibold d-none d-md-block" style="font-size:0.92rem;">
-                        {{ user.get_full_name|default:user.email }}
-                        <span class="text-muted">({{ user.profile.get_role_display }})</span>
-                    </div>
-                    <div class="user-avatar">
-                        {{ user.email|first|upper }}
-                    </div>
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
-                    <li><a class="dropdown-item" href="{% url 'profile' %}">
-                            <i class="fas fa-user-circle me-2"></i> Profile
-                        </a></li>
-                    <li>
-                        <hr class="dropdown-divider">
-                    </li>
-                    <li><a class="dropdown-item text-danger" href="#"
-                            onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                            <i class="fas fa-sign-out-alt me-2"></i> Logout
-                        </a></li>
-                </ul>
+            <div class="d-flex align-items-center gap-3">
+                <div class="dropdown">
+                    <a href="#" class="position-relative text-dark d-inline-block" data-bs-toggle="dropdown" aria-label="Notifications" style="font-size:1.2rem;">
+                        <i class="fas fa-bell"></i>
+                        {% if unread_notifications_count > 0 %}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem;">
+                            {{ unread_notifications_count }}
+                            <span class="visually-hidden">unread notifications</span>
+                        </span>
+                        {% endif %}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style="min-width: 320px; max-height: 420px; overflow-y: auto;">
+                        <li class="dropdown-header d-flex justify-content-between align-items-center">
+                            <span>Notifications</span>
+                            {% if unread_notifications_count > 0 %}
+                            <a href="{% url 'notification_mark_all_read' %}" class="small text-decoration-none">Mark all read</a>
+                            {% endif %}
+                        </li>
+                        {% if unread_notifications %}
+                            {% for note in unread_notifications %}
+                            <li>
+                                <a class="dropdown-item fw-semibold" href="{% url 'notification_mark_read' note.id %}">
+                                    <div class="small">{{ note.title }}</div>
+                                    <div class="text-muted small text-truncate fw-normal" style="max-width: 280px;">{{ note.message }}</div>
+                                    <div class="text-muted fw-normal" style="font-size:0.7rem;">{{ note.created_at|timesince }} ago</div>
+                                </a>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li><span class="dropdown-item-text text-muted small">No new notifications</span></li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-center small" href="{% url 'notifications' %}">View all notifications</a></li>
+                    </ul>
+                </div>
+                <div class="dropdown">
+                    <a href="#" class="d-flex align-items-center gap-3 text-decoration-none text-dark"
+                        data-bs-toggle="dropdown">
+                        <div class="fw-semibold d-none d-md-block" style="font-size:0.92rem;">
+                            {{ user.get_full_name|default:user.email }}
+                            <span class="text-muted">({{ user.profile.get_role_display }})</span>
+                        </div>
+                        <div class="user-avatar">
+                            {{ user.email|first|upper }}
+                        </div>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
+                        <li><a class="dropdown-item" href="{% url 'profile' %}">
+                                <i class="fas fa-user-circle me-2"></i> Profile
+                            </a></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li><a class="dropdown-item text-danger" href="#"
+                                onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                <i class="fas fa-sign-out-alt me-2"></i> Logout
+                            </a></li>
+                    </ul>
+                </div>
             </div>
             {% endif %}
         </div>

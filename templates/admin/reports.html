@@ -3,6 +3,85 @@
 {% block page_title %}Reports{% endblock %}
 
 {% block content %}
+{% with role=user.profile.role %}
+{% if role == 'admin' or role == 'hod' %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Report Filters</h6>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Programme</label>
+                <select name="programme" class="form-select form-select-sm">
+                    <option value="">All Programmes</option>
+                    {% for programme in filter_programmes %}
+                    <option value="{{ programme.id }}" {% if request.GET.programme == programme.id|stringformat:"s" %}selected{% endif %}>{{ programme.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Batch</label>
+                <select name="batch" class="form-select form-select-sm">
+                    <option value="">All Batches</option>
+                    {% for batch in filter_batches %}
+                    <option value="{{ batch.id }}" {% if request.GET.batch == batch.id|stringformat:"s" %}selected{% endif %}>{{ batch.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Student (register number)</label>
+                <input type="text" name="student_search" class="form-control form-control-sm" value="{{ request.GET.student_search }}" placeholder="e.g. REG001">
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Mentor</label>
+                <select name="mentor" class="form-select form-select-sm">
+                    <option value="">All Mentors</option>
+                    {% for mentor in filter_mentors %}
+                    <option value="{{ mentor.id }}" {% if request.GET.mentor == mentor.id|stringformat:"s" %}selected{% endif %}>{{ mentor.user.get_full_name|default:mentor.user.email }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Organisation</label>
+                <select name="organisation" class="form-select form-select-sm">
+                    <option value="">All Organisations</option>
+                    {% for organisation in filter_organisations %}
+                    <option value="{{ organisation.id }}" {% if request.GET.organisation == organisation.id|stringformat:"s" %}selected{% endif %}>{{ organisation.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Internship Type</label>
+                <select name="internship_type" class="form-select form-select-sm">
+                    <option value="">All Types</option>
+                    {% for type_code, type_label in filter_internship_types %}
+                    <option value="{{ type_code }}" {% if request.GET.internship_type == type_code %}selected{% endif %}>{{ type_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small">Verification Status</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">All Status</option>
+                    {% for status_code, status_label in filter_verification_statuses %}
+                    <option value="{{ status_code }}" {% if request.GET.status == status_code %}selected{% endif %}>{{ status_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="fas fa-check me-1"></i>Apply to Exports
+                </button>
+                <a href="{% url 'admin_reports' %}" class="btn btn-outline-secondary btn-sm w-100">
+                    <i class="fas fa-undo me-1"></i>Reset
+                </a>
+            </div>
+        </form>
+        <p class="text-muted small mb-0 mt-2">Filters apply to the Excel/PDF export buttons below.</p>
+    </div>
+</div>
+{% endif %}
 <div class="row">
     <div class="col-12">
         <div class="card">
@@ -11,7 +90,6 @@
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    {% with role=user.profile.role %}
                     {% if role == 'admin' or role == 'hod' or role == 'student' %}
                     <div class="col-md-4">
                         <div class="card h-100">
@@ -19,8 +97,8 @@
                                 <i class="fas fa-user-graduate fa-3x text-primary mb-3"></i>
                                 <h6>{% if role == 'student' %}My Student Report{% else %}Student-wise Report{% endif %}</h6>
                                 <p class="text-muted small">{% if role == 'student' %}My degree and internship summary{% else %}Student degree and internship summary{% endif %}</p>
-                                <a href="{% url 'report_export' 'student' %}" class="btn btn-primary btn-sm">Excel</a>
-                                <a href="{% url 'report_export' 'student' %}?format=pdf" class="btn btn-outline-primary btn-sm">PDF</a>
+                                <a href="{% url 'report_export' 'student' %}?{{ request.GET.urlencode }}" class="btn btn-primary btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'student' %}?{{ request.GET.urlencode }}&format=pdf" class="btn btn-outline-primary btn-sm">PDF</a>
                             </div>
                         </div>
                     </div>
@@ -32,8 +110,8 @@
                                 <i class="fas fa-users fa-3x text-success mb-3"></i>
                                 <h6>{% if role == 'student' %}My Internship Report{% elif role == 'evaluator' %}My Evaluation Report{% else %}Internship Report{% endif %}</h6>
                                 <p class="text-muted small">{% if role == 'student' %}My internship history and viva marks{% elif role == 'evaluator' %}Marks entered by me{% else %}Internship completion and assessment records{% endif %}</p>
-                                <a href="{% url 'report_export' 'internship' %}" class="btn btn-success btn-sm">Excel</a>
-                                <a href="{% url 'report_export' 'internship' %}?format=pdf" class="btn btn-outline-success btn-sm">PDF</a>
+                                <a href="{% url 'report_export' 'internship' %}?{{ request.GET.urlencode }}" class="btn btn-success btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'internship' %}?{{ request.GET.urlencode }}&format=pdf" class="btn btn-outline-success btn-sm">PDF</a>
                             </div>
                         </div>
                     </div>
@@ -45,8 +123,8 @@
                                 <i class="fas fa-building fa-3x text-info mb-3"></i>
                                 <h6>Organisation-wise Report</h6>
                                 <p class="text-muted small">Students interned with each organisation</p>
-                                <a href="{% url 'report_export' 'organisation' %}" class="btn btn-info btn-sm">Excel</a>
-                                <a href="{% url 'report_export' 'organisation' %}?format=pdf" class="btn btn-outline-info btn-sm">PDF</a>
+                                <a href="{% url 'report_export' 'organisation' %}?{{ request.GET.urlencode }}" class="btn btn-info btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'organisation' %}?{{ request.GET.urlencode }}&format=pdf" class="btn btn-outline-info btn-sm">PDF</a>
                             </div>
                         </div>
                     </div>
@@ -58,8 +136,8 @@
                                 <i class="fas fa-chalkboard-teacher fa-3x text-warning mb-3"></i>
                                 <h6>{% if role == 'faculty_mentor' %}My Assignment Report{% else %}Mentor-wise Report{% endif %}</h6>
                                 <p class="text-muted small">{% if role == 'faculty_mentor' %}Students assigned to me{% else %}Faculty mentor assignment history{% endif %}</p>
-                                <a href="{% url 'report_export' 'mentor' %}" class="btn btn-warning btn-sm">Excel</a>
-                                <a href="{% url 'report_export' 'mentor' %}?format=pdf" class="btn btn-outline-warning btn-sm">PDF</a>
+                                <a href="{% url 'report_export' 'mentor' %}?{{ request.GET.urlencode }}" class="btn btn-warning btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'mentor' %}?{{ request.GET.urlencode }}&format=pdf" class="btn btn-outline-warning btn-sm">PDF</a>
                             </div>
                         </div>
                     </div>
@@ -83,8 +161,32 @@
                                 <i class="fas fa-clock fa-3x text-secondary mb-3"></i>
                                 <h6>Break / Gap Report</h6>
                                 <p class="text-muted small">Break history and internship overlaps</p>
-                                <a href="{% url 'report_export' 'break' %}" class="btn btn-secondary btn-sm">Excel</a>
-                                <a href="{% url 'report_export' 'break' %}?format=pdf" class="btn btn-outline-secondary btn-sm">PDF</a>
+                                <a href="{% url 'report_export' 'break' %}?{{ request.GET.urlencode }}" class="btn btn-secondary btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'break' %}?{{ request.GET.urlencode }}&format=pdf" class="btn btn-outline-secondary btn-sm">PDF</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if role == 'admin' or role == 'hod' %}
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-hourglass-half fa-3x text-danger mb-3"></i>
+                                <h6>Pending Marks Report</h6>
+                                <p class="text-muted small">Internships verified but still missing final viva marks</p>
+                                <a href="{% url 'report_export' 'pending_marks' %}?{{ request.GET.urlencode }}" class="btn btn-danger btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'pending_marks' %}?{{ request.GET.urlencode }}&format=pdf" class="btn btn-outline-danger btn-sm">PDF</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-file-circle-exclamation fa-3x text-dark mb-3"></i>
+                                <h6>Pending Documents Report</h6>
+                                <p class="text-muted small">Internships missing a certificate or report upload</p>
+                                <a href="{% url 'report_export' 'pending_document' %}?{{ request.GET.urlencode }}" class="btn btn-dark btn-sm">Excel</a>
+                                <a href="{% url 'report_export' 'pending_document' %}?{{ request.GET.urlencode }}&format=pdf" class="btn btn-outline-dark btn-sm">PDF</a>
                             </div>
                         </div>
                     </div>

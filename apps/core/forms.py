@@ -239,6 +239,12 @@ class OrganisationForm(forms.ModelForm):
             raise forms.ValidationError("An organisation with this email already exists.")
         return email
 
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone')
+        if phone and Organisation.objects.filter(phone__iexact=phone).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError("An organisation with this phone number already exists.")
+        return phone
+
     def clean(self):
         cleaned_data = super().clean()
         organisation_type = cleaned_data.get('organisation_type')
@@ -247,6 +253,17 @@ class OrganisationForm(forms.ModelForm):
             self.add_error('organisation_type_other', "Please specify the organisation type.")
         if organisation_type != 'other':
             cleaned_data['organisation_type_other'] = ''
+
+        address = cleaned_data.get('address')
+        city = cleaned_data.get('city')
+        if address and city:
+            location_match = Organisation.objects.filter(
+                address__iexact=address,
+                city__iexact=city,
+            ).exclude(pk=self.instance.pk)
+            if location_match.exists():
+                self.add_error('address', "Another organisation is already registered at this exact address. Please verify before adding a duplicate.")
+
         return cleaned_data
 
 
@@ -420,7 +437,7 @@ class MentorAssignmentForm(forms.ModelForm):
         fields = [
             'student', 'faculty_mentor', 'effective_from', 'effective_to',
             'assignment_level', 'related_semester', 'internship_record',
-            'reason_for_change', 'remarks'
+            'allow_co_mentor', 'reason_for_change', 'remarks'
         ]
         widgets = {
             'student': forms.Select(attrs={'class': 'form-control'}),
@@ -430,10 +447,11 @@ class MentorAssignmentForm(forms.ModelForm):
             'assignment_level': forms.Select(attrs={'class': 'form-control'}),
             'related_semester': forms.TextInput(attrs={'class': 'form-control'}),
             'internship_record': forms.Select(attrs={'class': 'form-control'}),
+            'allow_co_mentor': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'reason_for_change': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
             'remarks': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['faculty_mentor'].queryset = UserProfile.objects.filter(
@@ -445,15 +463,25 @@ class MentorAssignmentForm(forms.ModelForm):
         student = cleaned_data.get('student')
         effective_from = cleaned_data.get('effective_from')
         effective_to = cleaned_data.get('effective_to')
+        assignment_level = cleaned_data.get('assignment_level')
+        allow_co_mentor = cleaned_data.get('allow_co_mentor')
+        internship_record = cleaned_data.get('internship_record')
 
         if effective_from and effective_to and effective_to < effective_from:
             self.add_error('effective_to', "Effective to date cannot be before effective from date.")
 
-        if student and effective_from:
+        if student and effective_from and not allow_co_mentor:
+            # Only assignments in the SAME scope (and, for internship-specific
+            # assignments, the SAME internship) count as a conflicting overlap.
             active_overlap = MentorAssignment.objects.filter(
                 student=student,
                 is_active=True,
+                assignment_level=assignment_level,
+                allow_co_mentor=False,
             ).exclude(pk=self.instance.pk)
+
+            if assignment_level == 'internship':
+                active_overlap = active_overlap.filter(internship_record=internship_record)
 
             if effective_to:
                 active_overlap = active_overlap.filter(
@@ -466,7 +494,11 @@ class MentorAssignmentForm(forms.ModelForm):
                 )
 
             if active_overlap.exists():
-                self.add_error('student', "This student already has an active mentor assignment for the selected period.")
+                self.add_error(
+                    'student',
+                    "This student already has an active mentor assignment at this level for the selected period. "
+                    "Enable co-mentoring to allow an additional mentor to overlap."
+                )
 
         return cleaned_data
 

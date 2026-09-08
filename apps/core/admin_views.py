@@ -48,6 +48,7 @@ from django.db.models import Count, Q, Avg, Sum
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.db.models import F
+from django.db import transaction
 import pandas as pd
 import json
 import csv
@@ -58,9 +59,10 @@ from django.contrib.auth.models import User
 from apps.authentication.models import UserProfile
 
 from .models import (
-    Department, Programme, Batch, Student, Organisation, 
+    Department, Programme, Batch, Student, Organisation,
     InternshipRecord, BreakRecord,
-    MentorAssignment, AssessmentComponent, AssessmentMarks, AssessmentConfiguration, ConsolidatedScore
+    MentorAssignment, AssessmentComponent, AssessmentMarks, AssessmentConfiguration, ConsolidatedScore,
+    AuditLog
 )
 from .forms import (
     UserForm, StudentForm, OrganisationForm, InternshipForm, 
@@ -75,7 +77,8 @@ from .display import user_name_with_role
 from apps.utils.permissions import is_admin, is_dept_admin, is_hod
 from apps.utils.calculations import calculate_student_consolidated_marks
 from apps.utils.report_generator import generate_excel_report, generate_pdf_report
-from apps.utils.notifications import send_notification
+from apps.utils.notifications import send_notification, send_bulk_notification
+from apps.utils.audit import log_action
 
 
 # ============================================
@@ -134,6 +137,43 @@ def admin_dashboard(request):
         },
     }
     return render(request, 'admin/dashboard.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def audit_logs(request):
+    """Admin-only audit log viewer (uses existing AuditLog data as-is)."""
+    logs = AuditLog.objects.select_related('user').all()
+
+    user_id = request.GET.get('user')
+    action = request.GET.get('action')
+    module = request.GET.get('module')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+
+    if user_id:
+        logs = logs.filter(user_id=user_id)
+    if action:
+        logs = logs.filter(action=action)
+    if module:
+        logs = logs.filter(module=module)
+    if date_from:
+        logs = logs.filter(timestamp__date__gte=date_from)
+    if date_to:
+        logs = logs.filter(timestamp__date__lte=date_to)
+
+    paginator = Paginator(logs, 50)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'active_tab': 'admin_audit_logs',
+        'logs': page_obj,
+        'total_count': logs.count(),
+        'filter_users': User.objects.filter(audit_logs__isnull=False).distinct().order_by('first_name', 'email'),
+        'filter_actions': AuditLog.objects.order_by().values_list('action', flat=True).distinct(),
+        'filter_modules': AuditLog.objects.order_by().values_list('module', flat=True).distinct(),
+    }
+    return render(request, 'admin/audit_logs.html', context)
 
 
 # ============================================
@@ -503,7 +543,9 @@ def student_list(request):
     batch = request.GET.get('batch')
     status = request.GET.get('status')
     search = request.GET.get('search')
-    
+    degree_start = request.GET.get('degree_start')
+    degree_end = request.GET.get('degree_end')
+
     if programme:
         students = students.filter(programme_id=programme)
     if batch:
@@ -516,6 +558,12 @@ def student_list(request):
             Q(name__icontains=search) |
             Q(email__icontains=search)
         )
+    # Degree-period filter: keep students whose degree period overlaps the
+    # requested [degree_start, degree_end] range.
+    if degree_start:
+        students = students.filter(Q(degree_end_date__gte=degree_start) | Q(degree_end_date__isnull=True))
+    if degree_end:
+        students = students.filter(Q(degree_start_date__lte=degree_end) | Q(degree_start_date__isnull=True))
     
     students = students.order_by('register_number')
     paginator = Paginator(students, 20)
@@ -548,6 +596,10 @@ def student_add(request):
         if form.is_valid():
             try:
                 student = form.save()
+                log_action(
+                    request, 'CREATE', 'Student', record_id=student.id,
+                    new_value=f'{student.register_number} - {student.name}'
+                )
                 messages.success(request, f'Student {student.name} added successfully!')
                 return redirect('admin_students')
             except Exception as e:
@@ -637,12 +689,18 @@ def student_request_reject(request, pk):
 def student_edit(request, pk):
     """Edit student details"""
     student = get_object_or_404(Student, pk=pk)
-    
+    old_snapshot = f'{student.register_number} - {student.name} - {student.status}'
+
     if request.method == 'POST':
         form = StudentForm(request.POST, instance=student)
         if form.is_valid():
             try:
                 form.save()
+                log_action(
+                    request, 'UPDATE', 'Student', record_id=student.id,
+                    old_value=old_snapshot,
+                    new_value=f'{student.register_number} - {student.name} - {student.status}'
+                )
                 messages.success(request, f'Student {student.name} updated successfully!')
                 return redirect('admin_students')
             except Exception as e:
@@ -727,114 +785,102 @@ def student_delete(request, pk):
     return redirect('admin_students')
 
 
-# @login_required
-# @user_passes_test(is_admin)
-# def bulk_upload_students(request):
-#     """Bulk upload students via Excel/CSV"""
-#     if request.method == 'POST':
-#         uploaded_file = request.FILES.get('excel_file')
-#         if not uploaded_file:
-#             messages.error(request, 'Please select a file')
-#             return redirect('admin_students')
-        
-#         try:
-#             if uploaded_file.name.endswith('.csv'):
-#                 df = pd.read_csv(uploaded_file)
-#             else:
-#                 df = pd.read_excel(uploaded_file)
-            
-#             success_count = 0
-#             error_count = 0
-            
-#             for index, row in df.iterrows():
-#                 try:
-#                     programme = Programme.objects.get(code=str(row['programme_code']).strip())
-#                     batch = Batch.objects.get(name=str(row['batch']).strip(), programme=programme)
-                    
-#                     student = Student(
-#                         register_number=str(row['register_number']).strip(),
-#                         name=row['name'],
-#                         email=row['email'],
-#                         programme=programme,
-#                         batch=batch,
-#                         degree_start_date=pd.to_datetime(row['degree_start_date']).date(),
-#                         degree_end_date=pd.to_datetime(row['degree_end_date']).date(),
-#                         mobile=str(row.get('mobile', '')).strip() if 'mobile' in row else '',
-#                     )
-#                     student.save()
-#                     success_count += 1
-#                 except Exception as e:
-#                     error_count += 1
-#                     print(f"Error at row {index}: {e}")
-            
-#             messages.success(request, f'Successfully uploaded {success_count} students. Errors: {error_count}')
-#         except Exception as e:
-#             messages.error(request, f'Error processing file: {str(e)}')
-        
-#         return redirect('admin_students')
-    
-#     return redirect('admin_students')
 @login_required
 @user_passes_test(is_admin)
 def bulk_upload_students(request):
-    """Bulk upload students via Excel/CSV"""
+    """Bulk upload students via Excel/CSV.
+
+    Each row is processed inside its own transaction savepoint, so a failure
+    in one row is rolled back for that row only and does not affect rows
+    already committed. Register number / email duplicates (against the
+    database and against earlier rows in the same file) are pre-checked so
+    they surface as a clear per-row error instead of a raw IntegrityError.
+    """
     if request.method == 'POST':
         uploaded_file = request.FILES.get('excel_file') or request.FILES.get('csv_file')
         if not uploaded_file:
             messages.error(request, 'Please select a file')
             return redirect('admin_students')
-        
-        # Check file extension
+
         filename = uploaded_file.name
         if not (filename.endswith('.csv') or filename.endswith('.xlsx') or filename.endswith('.xls')):
-            messages.error(request, 'Please upload CSV or Excel file')
+            messages.error(request, 'Please upload a CSV or Excel file')
             return redirect('admin_students')
-        
+
         try:
-            # Try using pandas (preferred)
-            try:
-                import pandas as pd
-                if filename.endswith('.csv'):
-                    df = pd.read_csv(uploaded_file)
-                else:
-                    df = pd.read_excel(uploaded_file)
-                
-                # Process using pandas
-                success_count = 0
-                error_count = 0
-                
-                for index, row in df.iterrows():
-                    try:
-                        programme = Programme.objects.get(code=str(row['programme_code']).strip())
-                        batch = Batch.objects.get(name=str(row['batch']).strip(), programme=programme)
-                        
-                        student = Student(
-                            register_number=str(row['register_number']).strip(),
-                            name=row['name'],
-                            email=row['email'],
-                            programme=programme,
-                            batch=batch,
-                            degree_start_date=pd.to_datetime(row['degree_start_date']).date(),
-                            degree_end_date=pd.to_datetime(row['degree_end_date']).date(),
-                            mobile=str(row.get('mobile', '')).strip() if 'mobile' in row else '',
-                        )
-                        student.save()
-                        success_count += 1
-                    except Exception as e:
-                        error_count += 1
-                        print(f"Error at row {index}: {e}")
-                
-                messages.success(request, f'Successfully uploaded {success_count} students. Errors: {error_count}')
-                
-            except ImportError:
-                # Fallback: Use manual CSV/Excel parsing if pandas not installed
-                messages.error(request, 'pandas is not installed. Please install pandas for bulk upload.')
-                
+            if filename.endswith('.csv'):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
         except Exception as e:
-            messages.error(request, f'Error processing file: {str(e)}')
-        
+            messages.error(request, f'Error reading file: {str(e)}')
+            return redirect('admin_students')
+
+        success_count = 0
+        failed_rows = []
+        seen_register_numbers = set()
+        seen_emails = set()
+        created_ids = []
+
+        for index, row in df.iterrows():
+            row_num = index + 2  # header row + 0-based index
+            try:
+                register_number = str(row['register_number']).strip()
+                email = str(row['email']).strip().lower()
+
+                if not register_number or not email:
+                    raise ValueError("register_number and email are required")
+
+                if register_number in seen_register_numbers or email in seen_emails:
+                    raise ValueError(f"Duplicate register_number/email within this file")
+                if Student.objects.filter(register_number=register_number).exists():
+                    raise ValueError(f"register_number {register_number} already exists")
+                if Student.objects.filter(email__iexact=email).exists():
+                    raise ValueError(f"email {email} already exists")
+
+                programme = Programme.objects.get(code=str(row['programme_code']).strip())
+                batch = Batch.objects.get(name=str(row['batch']).strip(), programme=programme)
+
+                with transaction.atomic():
+                    student = Student(
+                        register_number=register_number,
+                        name=row['name'],
+                        email=email,
+                        programme=programme,
+                        batch=batch,
+                        degree_start_date=pd.to_datetime(row['degree_start_date']).date(),
+                        degree_end_date=pd.to_datetime(row['degree_end_date']).date(),
+                        mobile=str(row.get('mobile', '')).strip() if 'mobile' in row else '',
+                        created_by=request.user,
+                    )
+                    student.save()
+
+                seen_register_numbers.add(register_number)
+                seen_emails.add(email)
+                created_ids.append(student.id)
+                success_count += 1
+            except Programme.DoesNotExist:
+                failed_rows.append({'row': row_num, 'error': f"Programme code '{row.get('programme_code', '')}' not found"})
+            except Batch.DoesNotExist:
+                failed_rows.append({'row': row_num, 'error': f"Batch '{row.get('batch', '')}' not found for that programme"})
+            except Exception as e:
+                failed_rows.append({'row': row_num, 'error': str(e)})
+
+        if success_count:
+            messages.success(request, f'Successfully uploaded {success_count} student(s).')
+            log_action(
+                request, 'BULK_CREATE', 'Student',
+                new_value=f'{success_count} student(s) created via bulk upload'
+            )
+        if failed_rows:
+            messages.warning(request, f'{len(failed_rows)} row(s) failed - see details below.')
+            for failure in failed_rows[:20]:
+                messages.error(request, f"Row {failure['row']}: {failure['error']}")
+            if len(failed_rows) > 20:
+                messages.error(request, f'...and {len(failed_rows) - 20} more row(s) with errors.')
+
         return redirect('admin_students')
-    
+
     return redirect('admin_students')
 
 
@@ -904,6 +950,10 @@ def organisation_add(request):
         if form.is_valid():
             try:
                 organisation = form.save()
+                log_action(
+                    request, 'CREATE', 'Organisation', record_id=organisation.id,
+                    new_value=organisation.name
+                )
                 messages.success(request, f'Organisation {organisation.name} added successfully!')
                 return redirect('admin_organisations')
             except Exception as e:
@@ -922,12 +972,17 @@ def organisation_add(request):
 def organisation_edit(request, pk):
     """Edit organisation"""
     organisation = get_object_or_404(Organisation, pk=pk)
-    
+    old_name = organisation.name
+
     if request.method == 'POST':
         form = OrganisationForm(request.POST, instance=organisation)
         if form.is_valid():
             try:
                 form.save()
+                log_action(
+                    request, 'UPDATE', 'Organisation', record_id=organisation.id,
+                    old_value=old_name, new_value=organisation.name
+                )
                 messages.success(request, f'Organisation {organisation.name} updated successfully!')
                 return redirect('admin_organisations')
             except Exception as e:
@@ -1342,12 +1397,38 @@ def internship_verify(request, pk):
         if action == 'needs_correction' and not remarks:
             messages.error(request, 'Please mention what changes are required.')
             return redirect('admin_internships')
+        old_status = internship.verification_status
         internship.verification_status = action
         internship.verified_by = request.user
         internship.verified_at = timezone.now()
         if remarks:
             internship.remarks = remarks
         internship.save(update_fields=['verification_status', 'verified_by', 'verified_at', 'remarks', 'updated_on'])
+
+        log_action(
+            request, 'VERIFY', 'InternshipRecord', record_id=internship.id,
+            old_value=old_status, new_value=internship.verification_status
+        )
+
+        if action == 'needs_correction' and internship.student.user_id:
+            send_notification(
+                internship.student.user,
+                'Internship Needs Correction',
+                f'Your {internship.get_internship_type_display()} #{internship.internship_number} '
+                f'({internship.organisation.name}) was sent back for correction: {remarks}',
+                'warning',
+                link='/dashboard/student/internships/'
+            )
+        elif action == 'verified':
+            evaluator_users = User.objects.filter(profile__role='evaluator', profile__is_active=True)
+            send_bulk_notification(
+                evaluator_users,
+                'Marks Pending',
+                f'{internship.student.name} ({internship.student.register_number}) - '
+                f'{internship.get_internship_type_display()} #{internship.internship_number} is verified and ready for marks entry.',
+                'info'
+            )
+
         messages.success(request, f'Internship marked as {internship.get_verification_status_display()}.')
     return redirect('admin_internships')
 
@@ -1384,6 +1465,10 @@ def break_add(request):
             try:
                 break_record = form.save(commit=False)
                 break_record.save()
+                log_action(
+                    request, 'CREATE', 'BreakRecord', record_id=break_record.id,
+                    new_value=f'{break_record.student.register_number} - {break_record.get_break_type_display()}'
+                )
                 overlaps = _break_overlapping_internships(break_record)
                 if overlaps:
                     messages.warning(request, f'Break overlaps with {len(overlaps)} internship period(s).')
@@ -1407,10 +1492,16 @@ def break_edit(request, pk):
     break_record = get_object_or_404(BreakRecord, pk=pk)
     
     if request.method == 'POST':
+        old_snapshot = f'{break_record.get_break_type_display()} {break_record.start_date} - {break_record.end_date}'
         form = BreakForm(request.POST, request.FILES, instance=break_record)
         if form.is_valid():
             try:
                 break_record = form.save()
+                log_action(
+                    request, 'UPDATE', 'BreakRecord', record_id=break_record.id,
+                    old_value=old_snapshot,
+                    new_value=f'{break_record.get_break_type_display()} {break_record.start_date} - {break_record.end_date}'
+                )
                 overlaps = _break_overlapping_internships(break_record)
                 if overlaps:
                     messages.warning(request, f'Break overlaps with {len(overlaps)} internship period(s).')
@@ -1619,6 +1710,10 @@ def mentor_assignment_add(request):
                 assignment = form.save(commit=False)
                 assignment.assigned_by = request.user
                 assignment.save()
+                log_action(
+                    request, 'CREATE', 'MentorAssignment', record_id=assignment.id,
+                    new_value=f'{assignment.student.register_number} -> {assignment.faculty_mentor.user.email}'
+                )
                 messages.success(request, 'Mentor assignment added successfully!')
                 return redirect('admin_mentor_assignments')  # ✅ Redirect, not JSON
             except Exception as e:
@@ -1661,12 +1756,18 @@ def mentor_assignment_edit(request, pk):
     
     logger.info(f"Edit assignment called for pk: {pk}, method: {request.method}")
     
+    old_snapshot = f'{assignment.student.register_number} -> {assignment.faculty_mentor.user.email} ({assignment.effective_from})'
     if request.method == 'POST':
         logger.info(f"POST data: {request.POST}")
         form = MentorAssignmentForm(request.POST, instance=assignment)
         if form.is_valid():
             try:
                 form.save()
+                log_action(
+                    request, 'UPDATE', 'MentorAssignment', record_id=assignment.id,
+                    old_value=old_snapshot,
+                    new_value=f'{assignment.student.register_number} -> {assignment.faculty_mentor.user.email} ({assignment.effective_from})'
+                )
                 messages.success(request, 'Mentor assignment updated successfully!')
                 logger.info(f"Assignment {pk} updated successfully")
                 return JsonResponse({'success': True, 'message': 'Assignment updated successfully!'})
@@ -1690,6 +1791,7 @@ def mentor_assignment_edit(request, pk):
         'effective_to': assignment.effective_to.strftime('%Y-%m-%d') if assignment.effective_to else '',
         'assignment_level': assignment.assignment_level,
         'related_semester': assignment.related_semester or '',
+        'allow_co_mentor': assignment.allow_co_mentor,
         'reason_for_change': assignment.reason_for_change or '',
         'remarks': assignment.remarks or '',
     }
@@ -1730,11 +1832,25 @@ def mentor_assignment_delete(request, pk):
 # REPORTS
 # ============================================
 
+def _report_filter_context():
+    """Shared filter-dropdown data for the Reports page (admin and HoD)."""
+    return {
+        'filter_programmes': Programme.objects.filter(is_active=True).order_by('name'),
+        'filter_batches': Batch.objects.filter(is_active=True).order_by('name'),
+        'filter_mentors': UserProfile.objects.filter(role__in=['faculty_mentor', 'hod']).select_related('user').order_by('user__first_name'),
+        'filter_organisations': Organisation.objects.filter(is_active=True).order_by('name'),
+        'filter_internship_types': InternshipRecord.INTERNSHIP_TYPES,
+        'filter_verification_statuses': InternshipRecord.VERIFICATION_STATUS,
+    }
+
+
 @login_required
 @user_passes_test(is_admin)
 def admin_reports(request):
     """Admin reports page"""
-    return render(request, 'admin/reports.html', {'active_tab': 'admin_reports'})
+    context = {'active_tab': 'admin_reports'}
+    context.update(_report_filter_context())
+    return render(request, 'admin/reports.html', context)
 
 
 @login_required
@@ -1769,33 +1885,91 @@ def consolidated_report(request):
     return render(request, 'admin/consolidated_report.html', context)
 
 
+def _filter_students_qs(qs, request):
+    """Apply the shared report filter set (SRS FR-RP-09) to a Student queryset."""
+    if not request:
+        return qs
+    programme = request.GET.get('programme')
+    batch = request.GET.get('batch')
+    student_search = request.GET.get('student_search')
+    status = request.GET.get('status')
+    if programme:
+        qs = qs.filter(programme_id=programme)
+    if batch:
+        qs = qs.filter(batch_id=batch)
+    if student_search:
+        qs = qs.filter(Q(register_number__icontains=student_search) | Q(name__icontains=student_search))
+    if status:
+        qs = qs.filter(status=status)
+    return qs
+
+
+def _filter_internships_qs(qs, request):
+    """Apply the shared report filter set (SRS FR-RP-09) to an InternshipRecord queryset."""
+    if not request:
+        return qs
+    programme = request.GET.get('programme')
+    batch = request.GET.get('batch')
+    student_search = request.GET.get('student_search')
+    mentor_id = request.GET.get('mentor')
+    organisation_id = request.GET.get('organisation')
+    internship_type = request.GET.get('internship_type')
+    status = request.GET.get('status')
+    if programme:
+        qs = qs.filter(student__programme_id=programme)
+    if batch:
+        qs = qs.filter(student__batch_id=batch)
+    if student_search:
+        qs = qs.filter(Q(student__register_number__icontains=student_search) | Q(student__name__icontains=student_search))
+    if organisation_id:
+        qs = qs.filter(organisation_id=organisation_id)
+    if internship_type:
+        qs = qs.filter(internship_type=internship_type)
+    if status:
+        qs = qs.filter(verification_status=status)
+    if mentor_id:
+        mentee_ids = MentorAssignment.objects.filter(faculty_mentor_id=mentor_id, is_active=True).values_list('student_id', flat=True)
+        qs = qs.filter(student_id__in=mentee_ids)
+    return qs
+
+
 @login_required
 @user_passes_test(is_admin)
 def export_report(request, report_type):
     """Export report in Excel/PDF format"""
     export_format = request.GET.get('format', 'excel')
     if report_type == 'student':
-        data = _student_report_rows()
-        headers = ['Register No', 'Name', 'Programme', 'Batch', 'Degree Start', 'Degree End', 'Status', 'Internships', 'Breaks']
+        data = _student_report_rows(request)
+        headers = ['Register No', 'Name', 'Programme', 'Batch', 'Degree Start', 'Degree End', 'Status', 'Internships', 'Breaks', 'Current Mentor', 'Remarks']
         filename = 'student_report'
     elif report_type == 'internship':
-        data = _internship_report_rows()
+        data = _internship_report_rows(request)
         headers = ['Register No', 'Student', 'Type', 'Number', 'Organisation', 'Start Date', 'End Date', 'Completion', 'Verification', 'Viva Marks']
         filename = 'internship_report'
     elif report_type == 'organisation':
-        data = _organisation_report_rows()
+        data = _organisation_report_rows(request)
         headers = ['Organisation', 'Type', 'Location', 'Area of Work', 'Status', 'Student Count', 'Internship Count']
         filename = 'organisation_report'
     elif report_type == 'mentor':
-        data = _mentor_report_rows()
+        data = _mentor_report_rows(request)
         headers = ['Register No', 'Student', 'Faculty Mentor', 'Effective From', 'Effective To', 'Semester', 'Level', 'Active']
         filename = 'mentor_assignment_report'
     elif report_type == 'break':
-        data = _break_report_rows()
+        data = _break_report_rows(request)
         headers = ['Register No', 'Student', 'Break Type', 'Start Date', 'End Date', 'Approved By', 'Overlapping Internships']
         filename = 'break_report'
+    elif report_type == 'pending_marks':
+        data = _pending_marks_report_rows(request)
+        headers = ['Register No', 'Student', 'Type', 'Number', 'Organisation', 'Verified On', 'Days Pending']
+        filename = 'pending_marks_report'
+    elif report_type == 'pending_document':
+        data = _pending_documents_report_rows(request)
+        headers = ['Register No', 'Student', 'Type', 'Number', 'Missing Documents']
+        filename = 'pending_documents_report'
     else:
         return HttpResponse(f"Unknown report type: {report_type}", status=400)
+
+    log_action(request, 'EXPORT', f'{report_type}_report', new_value=f'format={export_format}')
 
     if export_format == 'pdf':
         table_rows = [[row.get(header, '') for header in headers] for row in data]
@@ -1803,9 +1977,14 @@ def export_report(request, report_type):
     return generate_excel_report(data, filename, report_type.title())
 
 
-def _student_report_rows():
+def _student_report_rows(request=None):
     rows = []
-    for student in Student.objects.select_related('programme', 'batch').prefetch_related('internships', 'breaks').order_by('register_number'):
+    students = _filter_students_qs(
+        Student.objects.select_related('programme', 'batch').prefetch_related('internships', 'breaks'),
+        request
+    )
+    for student in students.order_by('register_number'):
+        current_mentor = MentorAssignment.objects.filter(student=student, is_active=True).select_related('faculty_mentor__user').first()
         rows.append({
             'Register No': student.register_number,
             'Name': student.name,
@@ -1816,13 +1995,18 @@ def _student_report_rows():
             'Status': student.get_status_display(),
             'Internships': student.internships.count(),
             'Breaks': student.breaks.count(),
+            'Current Mentor': (current_mentor.faculty_mentor.user.get_full_name() or current_mentor.faculty_mentor.user.email) if current_mentor else '',
+            'Remarks': student.remarks or '',
         })
     return rows
 
 
-def _internship_report_rows():
+def _internship_report_rows(request=None):
     rows = []
-    internships = InternshipRecord.objects.select_related('student', 'organisation').prefetch_related('assessment_marks__assessment_component')
+    internships = _filter_internships_qs(
+        InternshipRecord.objects.select_related('student', 'organisation').prefetch_related('assessment_marks__assessment_component'),
+        request
+    )
     for internship in internships.order_by('student__register_number', 'internship_number'):
         viva = internship.assessment_marks.filter(assessment_component__assessment_type='viva').first()
         rows.append({
@@ -1840,9 +2024,14 @@ def _internship_report_rows():
     return rows
 
 
-def _organisation_report_rows():
+def _organisation_report_rows(request=None):
     rows = []
-    for organisation in Organisation.objects.prefetch_related('internships__student').order_by('name'):
+    organisations = Organisation.objects.prefetch_related('internships__student').order_by('name')
+    if request:
+        organisation_id = request.GET.get('organisation')
+        if organisation_id:
+            organisations = organisations.filter(pk=organisation_id)
+    for organisation in organisations:
         students = {internship.student_id for internship in organisation.internships.all()}
         rows.append({
             'Organisation': organisation.name,
@@ -1856,9 +2045,20 @@ def _organisation_report_rows():
     return rows
 
 
-def _break_report_rows():
+def _break_report_rows(request=None):
     rows = []
-    for break_record in BreakRecord.objects.select_related('student', 'approved_by').order_by('-start_date'):
+    breaks = BreakRecord.objects.select_related('student', 'approved_by').order_by('-start_date')
+    if request:
+        student_search = request.GET.get('student_search')
+        programme = request.GET.get('programme')
+        batch = request.GET.get('batch')
+        if student_search:
+            breaks = breaks.filter(Q(student__register_number__icontains=student_search) | Q(student__name__icontains=student_search))
+        if programme:
+            breaks = breaks.filter(student__programme_id=programme)
+        if batch:
+            breaks = breaks.filter(student__batch_id=batch)
+    for break_record in breaks:
         overlaps = _break_overlapping_internships(break_record)
         rows.append({
             'Register No': break_record.student.register_number,
@@ -1872,11 +2072,26 @@ def _break_report_rows():
     return rows
 
 
-def _mentor_report_rows():
+def _mentor_report_rows(request=None, department=None):
     rows = []
     assignments = MentorAssignment.objects.select_related('student', 'faculty_mentor__user').order_by(
         'student__register_number', '-effective_from'
     )
+    if department is not None:
+        assignments = assignments.filter(student__department=department)
+    if request:
+        mentor_id = request.GET.get('mentor')
+        student_search = request.GET.get('student_search')
+        programme = request.GET.get('programme')
+        batch = request.GET.get('batch')
+        if mentor_id:
+            assignments = assignments.filter(faculty_mentor_id=mentor_id)
+        if student_search:
+            assignments = assignments.filter(Q(student__register_number__icontains=student_search) | Q(student__name__icontains=student_search))
+        if programme:
+            assignments = assignments.filter(student__programme_id=programme)
+        if batch:
+            assignments = assignments.filter(student__batch_id=batch)
     for assignment in assignments:
         mentor_user = assignment.faculty_mentor.user
         rows.append({
@@ -1888,6 +2103,57 @@ def _mentor_report_rows():
             'Semester': assignment.related_semester,
             'Level': assignment.get_assignment_level_display(),
             'Active': 'Yes' if assignment.is_active else 'No',
+        })
+    return rows
+
+
+def _pending_marks_report_rows(request=None):
+    """Internships that are verified (ready for marks) but have no approved/locked viva mark yet."""
+    internships = _filter_internships_qs(
+        InternshipRecord.objects.filter(verification_status='verified').select_related('student', 'organisation'),
+        request
+    )
+    rows = []
+    for internship in internships.order_by('student__register_number', 'internship_number'):
+        has_final_viva = internship.assessment_marks.filter(
+            assessment_component__assessment_type='viva', status__in=['approved', 'locked']
+        ).exists()
+        if has_final_viva:
+            continue
+        days_pending = (timezone.now().date() - internship.verified_at.date()).days if internship.verified_at else ''
+        rows.append({
+            'Register No': internship.student.register_number,
+            'Student': internship.student.name,
+            'Type': internship.get_internship_type_display(),
+            'Number': internship.internship_number,
+            'Organisation': internship.organisation.name,
+            'Verified On': internship.verified_at.date() if internship.verified_at else '',
+            'Days Pending': days_pending,
+        })
+    return rows
+
+
+def _pending_documents_report_rows(request=None):
+    """Internships missing a certificate and/or report upload."""
+    internships = _filter_internships_qs(
+        InternshipRecord.objects.select_related('student', 'organisation'),
+        request
+    )
+    rows = []
+    for internship in internships.order_by('student__register_number', 'internship_number'):
+        missing = []
+        if not internship.certificate_upload:
+            missing.append('Certificate')
+        if not internship.report_upload:
+            missing.append('Report')
+        if not missing:
+            continue
+        rows.append({
+            'Register No': internship.student.register_number,
+            'Student': internship.student.name,
+            'Type': internship.get_internship_type_display(),
+            'Number': internship.internship_number,
+            'Missing Documents': ', '.join(missing),
         })
     return rows
 

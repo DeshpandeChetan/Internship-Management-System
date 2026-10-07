@@ -12,6 +12,7 @@ from .models import InternshipRecord, AssessmentMarks, AssessmentComponent, Asse
 from .forms import AssessmentMarksForm
 from .decorators import evaluator_required
 from apps.utils.audit import log_action
+from apps.utils.calculations import calculate_student_internship_progress
 from apps.utils.notifications import send_notification, send_bulk_notification
 
 
@@ -175,6 +176,7 @@ def pending_assessments(request):
         assessment_rows.append({
             'internship': internship,
             'form': form,
+            'internship_progress': calculate_student_internship_progress(internship.student),
         })
 
     return render(request, 'evaluator/pending_assessments.html', {

@@ -75,7 +75,7 @@ from .display import user_name_with_role
 
 # Import utilities from apps/utils
 from apps.utils.permissions import is_admin, is_dept_admin, is_hod
-from apps.utils.calculations import calculate_student_consolidated_marks
+from apps.utils.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
 from apps.utils.report_generator import generate_excel_report, generate_pdf_report
 from apps.utils.notifications import send_notification, send_bulk_notification
 from apps.utils.audit import log_action
@@ -723,6 +723,7 @@ def student_detail(request, pk):
     breaks = student.breaks.all().order_by('-start_date')
     mentors = student.mentor_assignments.select_related('faculty_mentor__user').all().order_by('-effective_from')
     consolidated_data = calculate_student_consolidated_marks(student)
+    internship_progress = calculate_student_internship_progress(student)
 
     return JsonResponse({
         'register_number': student.register_number,
@@ -768,7 +769,23 @@ def student_detail(request, pk):
             for internship in internships
         ],
         'break_count': breaks.count(),
+        'break_history': [
+            {
+                'break_type': break_record.get_break_type_display(),
+                'period': f"{break_record.start_date.strftime('%d %b %Y')} - {break_record.end_date.strftime('%d %b %Y')}",
+                'reason': break_record.reason or '-',
+                'impact': break_record.impact_on_internship or '-',
+                'remarks': break_record.remarks or '-',
+                'document': break_record.supporting_document.url if break_record.supporting_document else '',
+                'overlaps': [
+                    f"{internship.internship_number} - {internship.organisation.name}"
+                    for internship in _break_overlapping_internships(break_record)
+                ],
+            }
+            for break_record in breaks
+        ],
         'consolidated_data': consolidated_data,
+        'internship_progress': internship_progress,
     })
 
 
@@ -1447,9 +1464,6 @@ def break_list(request):
         'active_tab': 'admin_breaks',
         'breaks': breaks,
         'students': Student.objects.all().order_by('register_number'),
-        'approvers': User.objects.filter(
-            profile__role__in=['admin', 'hod']
-        ).order_by('first_name', 'last_name', 'email'),
     }
     return render(request, 'admin/breaks.html', context)
 
@@ -1532,7 +1546,7 @@ def break_delete(request, pk):
 @user_passes_test(is_admin)
 def break_detail(request, pk):
     """Return break details for modal."""
-    break_record = get_object_or_404(BreakRecord.objects.select_related('student', 'approved_by'), pk=pk)
+    break_record = get_object_or_404(BreakRecord.objects.select_related('student'), pk=pk)
     duration = (break_record.end_date - break_record.start_date).days
     overlaps = _break_overlapping_internships(break_record)
     return JsonResponse({
@@ -1541,7 +1555,6 @@ def break_detail(request, pk):
         'start_date': break_record.start_date.strftime('%d %b %Y'),
         'end_date': break_record.end_date.strftime('%d %b %Y'),
         'duration': f'{duration} days',
-        'approved_by': break_record.approved_by.get_full_name() or break_record.approved_by.email if break_record.approved_by else '-',
         'reason': break_record.reason or '-',
         'impact': break_record.impact_on_internship or '',
         'document': break_record.supporting_document.url if break_record.supporting_document else '',
@@ -1956,7 +1969,7 @@ def export_report(request, report_type):
         filename = 'mentor_assignment_report'
     elif report_type == 'break':
         data = _break_report_rows(request)
-        headers = ['Register No', 'Student', 'Break Type', 'Start Date', 'End Date', 'Approved By', 'Overlapping Internships']
+        headers = ['Register No', 'Student', 'Break Type', 'Start Date', 'End Date', 'Reason', 'Impact', 'Overlapping Internships']
         filename = 'break_report'
     elif report_type == 'pending_marks':
         data = _pending_marks_report_rows(request)
@@ -2047,7 +2060,7 @@ def _organisation_report_rows(request=None):
 
 def _break_report_rows(request=None):
     rows = []
-    breaks = BreakRecord.objects.select_related('student', 'approved_by').order_by('-start_date')
+    breaks = BreakRecord.objects.select_related('student').order_by('-start_date')
     if request:
         student_search = request.GET.get('student_search')
         programme = request.GET.get('programme')
@@ -2066,7 +2079,8 @@ def _break_report_rows(request=None):
             'Break Type': break_record.get_break_type_display(),
             'Start Date': break_record.start_date,
             'End Date': break_record.end_date,
-            'Approved By': break_record.approved_by.get_full_name() or break_record.approved_by.email if break_record.approved_by else '',
+            'Reason': break_record.reason or '',
+            'Impact': break_record.impact_on_internship or '',
             'Overlapping Internships': len(overlaps),
         })
     return rows

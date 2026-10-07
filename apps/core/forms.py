@@ -1,5 +1,7 @@
 # apps/core/forms.py
 
+import re
+
 from django import forms
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -29,6 +31,24 @@ def validate_document_file(uploaded_file):
     if not name.endswith(ALLOWED_DOCUMENT_EXTENSIONS):
         raise forms.ValidationError("Only PDF, JPG, PNG, DOC, and DOCX files are allowed.")
 
+
+def validate_mobile_number(value):
+    value = (value or '').strip()
+    if not value:
+        return value
+    if not re.fullmatch(r'\d{10}', value):
+        raise forms.ValidationError("Enter a valid 10 digit mobile number.")
+    return value
+
+
+MOBILE_INPUT_ATTRS = {
+    'inputmode': 'numeric',
+    'pattern': r'\d{10}',
+    'maxlength': '10',
+    'minlength': '10',
+    'autocomplete': 'tel',
+}
+
 class UserForm(forms.ModelForm):
     """Form for creating/editing users"""
     first_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
@@ -46,7 +66,7 @@ class UserForm(forms.ModelForm):
     phone_number = forms.CharField(
         max_length=20, 
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control'})
+        widget=forms.TextInput(attrs={'class': 'form-control', **MOBILE_INPUT_ATTRS})
     )
     is_active = forms.BooleanField(
         required=False, 
@@ -72,6 +92,9 @@ class UserForm(forms.ModelForm):
         if User.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
             raise forms.ValidationError("A user with this email already exists.")
         return email
+
+    def clean_phone_number(self):
+        return validate_mobile_number(self.cleaned_data.get('phone_number'))
     
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -121,7 +144,7 @@ class StudentForm(forms.ModelForm):
             'register_number': forms.TextInput(attrs={'class': 'form-control'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'mobile': forms.TextInput(attrs={'class': 'form-control'}),
+            'mobile': forms.TextInput(attrs={'class': 'form-control', **MOBILE_INPUT_ATTRS}),
             'department': forms.Select(attrs={'class': 'form-control'}),
             'programme': forms.Select(attrs={'class': 'form-control'}),
             'batch': forms.Select(attrs={'class': 'form-control'}),
@@ -151,6 +174,9 @@ class StudentForm(forms.ModelForm):
         if Student.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
             raise forms.ValidationError("A student with this email already exists.")
         return email
+
+    def clean_mobile(self):
+        return validate_mobile_number(self.cleaned_data.get('mobile'))
     
     def save(self, commit=True):
         """Simple save - creates User without password (Google Login)"""
@@ -390,7 +416,7 @@ class BreakForm(forms.ModelForm):
         model = BreakRecord
         fields = [
             'break_type', 'start_date', 'end_date', 'reason',
-            'impact_on_internship', 'supporting_document', 'approved_by', 'remarks'
+            'impact_on_internship', 'supporting_document', 'remarks'
         ]
         widgets = {
             'break_type': forms.Select(attrs={'class': 'form-control'}),
@@ -399,7 +425,6 @@ class BreakForm(forms.ModelForm):
             'reason': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
             'impact_on_internship': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
             'supporting_document': forms.FileInput(attrs={'class': 'form-control'}),
-            'approved_by': forms.Select(attrs={'class': 'form-control'}),
             'remarks': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
     
@@ -407,10 +432,11 @@ class BreakForm(forms.ModelForm):
         cleaned_data = super().clean()
         start_date = cleaned_data.get('start_date')
         end_date = cleaned_data.get('end_date')
+        reason = (cleaned_data.get('reason') or '').strip()
         student = cleaned_data.get('student') or getattr(self.instance, 'student', None)
         
-        if start_date and end_date and end_date < start_date:
-            raise forms.ValidationError("End date must be after start date.")
+        if start_date and end_date and end_date <= start_date:
+            raise forms.ValidationError("Break end date must be after break start date.")
 
         validate_document_file(cleaned_data.get('supporting_document'))
 
@@ -420,8 +446,8 @@ class BreakForm(forms.ModelForm):
                 self.add_error('start_date', "Break start date must be within the student's degree period.")
             if degree_end and end_date > degree_end:
                 self.add_error('end_date', "Break end date must be within the student's degree period.")
-
-        validate_document_file(cleaned_data.get('supporting_document'))
+            if student.internships.filter(start_date__lte=end_date, end_date__gte=start_date).exists() and not reason:
+                self.add_error('reason', "Reason is required when a break overlaps an internship period.")
         
         return cleaned_data
 
@@ -628,7 +654,7 @@ class ProfileForm(forms.ModelForm):
         model = UserProfile
         fields = ['phone_number']
         widgets = {
-            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control', **MOBILE_INPUT_ATTRS}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -637,6 +663,9 @@ class ProfileForm(forms.ModelForm):
         if self.user:
             self.fields['first_name'].initial = self.user.first_name
             self.fields['last_name'].initial = self.user.last_name
+
+    def clean_phone_number(self):
+        return validate_mobile_number(self.cleaned_data.get('phone_number'))
     
     def save(self, commit=True):
         profile = super().save(commit=False)

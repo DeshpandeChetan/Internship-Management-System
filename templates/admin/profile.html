@@ -44,6 +44,61 @@
     </div>
 </div>
 
+{% if internship_progress %}
+<div class="row mt-4">
+    <div class="col-12">
+        {% include 'includes/internship_progress.html' %}
+    </div>
+</div>
+{% endif %}
+
+{% if break_history %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Break History</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Period</th>
+                                <th>Overlap</th>
+                                <th>Impact / Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in break_history %}
+                            {% with break_record=row.record overlaps=row.overlaps %}
+                            <tr>
+                                <td>{{ break_record.get_break_type_display }}</td>
+                                <td>{{ break_record.start_date|date:"d M Y" }} - {{ break_record.end_date|date:"d M Y" }}</td>
+                                <td>
+                                    {% if overlaps %}
+                                    {{ overlaps|length }} internship{{ overlaps|length|pluralize }}
+                                    {% else %}
+                                    No overlap
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ break_record.impact_on_internship|default:"-" }}
+                                    {% if break_record.remarks %}<div class="text-muted small">{{ break_record.remarks }}</div>{% endif %}
+                                </td>
+                            </tr>
+                            {% endwith %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="modal fade" id="editProfileModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">

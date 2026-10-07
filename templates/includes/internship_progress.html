@@ -1,0 +1,54 @@
+{% if internship_progress %}
+<div class="card h-100">
+    <div class="card-header">
+        <h6 class="mb-0">Internship Progress</h6>
+    </div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-semibold">Overall Completion</span>
+            <span class="badge bg-primary">{{ internship_progress.overall_percent }}%</span>
+        </div>
+        <div class="progress mb-3" style="height: 10px;">
+            <div class="progress-bar" role="progressbar" style="width: {{ internship_progress.overall_percent }}%;"></div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="border rounded p-3 h-100">
+                    <div class="text-muted small">Regular Internships</div>
+                    <div class="fs-5 fw-semibold">{{ internship_progress.regular_completed }}/{{ internship_progress.regular_required }}</div>
+                    <div class="progress mt-2" style="height: 8px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ internship_progress.regular_percent }}%;"></div>
+                    </div>
+                    <div class="small text-muted mt-2">{{ internship_progress.regular_pending }} pending</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="border rounded p-3 h-100">
+                    <div class="text-muted small">Final Assessment Internship</div>
+                    <div class="fs-6 fw-semibold">{{ internship_progress.assessment_status }}</div>
+                    <div class="small text-muted mt-2">
+                        {% if internship_progress.assessment_enabled %}
+                            {{ internship_progress.assessment_duration_months }} month requirement
+                        {% else %}
+                            Not enabled for this programme
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-2 mt-3">
+            {% for item in internship_progress.type_summary %}
+            <div class="col-md-6">
+                <div class="small">
+                    <span class="fw-semibold">{{ item.label }}:</span>
+                    <span>{{ item.count }}</span>
+                    <div class="text-muted">{{ item.description }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}

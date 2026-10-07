@@ -229,6 +229,78 @@ def calculate_student_consolidated_marks(student, top_n=None):
     }
 
 
+def calculate_student_internship_progress(student):
+    """Return SRS internship progress for dashboard/profile displays."""
+    config = _active_config(student)
+    regular_required = len(_regular_slots(config))
+    assessment_enabled = True if not config else config.assessment_internship_enabled
+    assessment_duration_months = 3 if not config else config.assessment_internship_duration_months
+
+    internships = student.internships.all()
+    regular_completed = internships.filter(
+        internship_type='regular',
+        completion_status='completed',
+    ).count()
+    assessment_completed = internships.filter(
+        internship_type='assessment',
+        completion_status='completed',
+    ).exists()
+    additional_count = internships.filter(internship_type='additional').count()
+    repeated_count = internships.filter(internship_type='repeated').count()
+
+    total_required = regular_required + (1 if assessment_enabled else 0)
+    completed_required = min(regular_completed, regular_required)
+    if assessment_enabled and assessment_completed:
+        completed_required += 1
+
+    overall_percent = round((completed_required / total_required) * 100) if total_required else 0
+    regular_percent = round((min(regular_completed, regular_required) / regular_required) * 100) if regular_required else 0
+
+    return {
+        'regular_required': regular_required,
+        'regular_completed': min(regular_completed, regular_required),
+        'regular_total_completed': regular_completed,
+        'regular_pending': max(regular_required - regular_completed, 0),
+        'regular_percent': regular_percent,
+        'assessment_enabled': assessment_enabled,
+        'assessment_duration_months': assessment_duration_months,
+        'assessment_completed': assessment_completed,
+        'assessment_status': 'Completed' if assessment_completed else 'Pending',
+        'additional_count': additional_count,
+        'repeated_count': repeated_count,
+        'total_required': total_required,
+        'completed_required': completed_required,
+        'overall_pending': max(total_required - completed_required, 0),
+        'overall_percent': overall_percent,
+        'type_summary': [
+            {
+                'label': 'Regular Internship',
+                'value': 'regular',
+                'description': f'{regular_required} required during the first four academic years.',
+                'count': internships.filter(internship_type='regular').count(),
+            },
+            {
+                'label': 'Final Assessment Internship',
+                'value': 'assessment',
+                'description': f'{assessment_duration_months} month assessment internship in fifth year.' if assessment_enabled else 'Not enabled for this programme.',
+                'count': internships.filter(internship_type='assessment').count(),
+            },
+            {
+                'label': 'Additional Internship',
+                'value': 'additional',
+                'description': 'Extra internship records where applicable.',
+                'count': additional_count,
+            },
+            {
+                'label': 'Repeated Internship',
+                'value': 'repeated',
+                'description': 'Repeated internship records where applicable.',
+                'count': repeated_count,
+            },
+        ],
+    }
+
+
 def calculate_batch_averages(batch):
     students = batch.students.filter(status='active')
     results = []

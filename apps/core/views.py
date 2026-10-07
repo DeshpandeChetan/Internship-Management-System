@@ -127,11 +127,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.http import JsonResponse
-from .models import Student, InternshipRecord, AssessmentMarks, MentorAssignment, ConsolidatedScore, Notification
+from .models import Student, InternshipRecord, AssessmentMarks, MentorAssignment, ConsolidatedScore, Notification, BreakRecord
+from .forms import validate_mobile_number
 from apps.utils.report_generator import generate_excel_report, generate_pdf_report
-from apps.utils.calculations import calculate_student_consolidated_marks
+from apps.utils.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
 from apps.utils.audit import log_action
 
 
@@ -171,7 +173,26 @@ def dashboard_redirect(request):
 @login_required
 def profile_view(request):
     """View user profile"""
-    return render(request, 'admin/profile.html', {'active_tab': 'profile'})
+    internship_progress = None
+    break_history = []
+    if hasattr(request.user, 'student_profile'):
+        student = request.user.student_profile
+        internship_progress = calculate_student_internship_progress(student)
+        breaks = BreakRecord.objects.filter(student=student).order_by('-start_date')
+        for break_record in breaks:
+            overlaps = student.internships.select_related('organisation').filter(
+                start_date__lte=break_record.end_date,
+                end_date__gte=break_record.start_date,
+            )
+            break_history.append({
+                'record': break_record,
+                'overlaps': list(overlaps),
+            })
+    return render(request, 'admin/profile.html', {
+        'internship_progress': internship_progress,
+        'break_history': break_history,
+        'active_tab': 'profile'
+    })
 
 
 @login_required
@@ -182,6 +203,11 @@ def profile_update(request):
         first_name = request.POST.get('first_name', '')
         last_name = request.POST.get('last_name', '')
         phone_number = request.POST.get('phone_number')
+        try:
+            phone_number = validate_mobile_number(phone_number)
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+            return redirect('profile')
         
         user.first_name = first_name
         user.last_name = last_name
@@ -271,7 +297,7 @@ def export_report(request, report_type):
             'internship': (admin_views._internship_report_rows(request), ['Register No', 'Student', 'Type', 'Number', 'Organisation', 'Start Date', 'End Date', 'Completion', 'Verification', 'Viva Marks'], 'internship_report'),
             'organisation': (admin_views._organisation_report_rows(request), ['Organisation', 'Type', 'Location', 'Area of Work', 'Status', 'Student Count', 'Internship Count'], 'organisation_report'),
             'mentor': (admin_views._mentor_report_rows(request, department=department), ['Register No', 'Student', 'Faculty Mentor', 'Effective From', 'Effective To', 'Semester', 'Level', 'Active'], 'mentor_assignment_report'),
-            'break': (admin_views._break_report_rows(request), ['Register No', 'Student', 'Break Type', 'Start Date', 'End Date', 'Approved By', 'Overlapping Internships'], 'break_report'),
+            'break': (admin_views._break_report_rows(request), ['Register No', 'Student', 'Break Type', 'Start Date', 'End Date', 'Reason', 'Impact', 'Overlapping Internships'], 'break_report'),
             'pending_marks': (admin_views._pending_marks_report_rows(request), ['Register No', 'Student', 'Type', 'Number', 'Organisation', 'Verified On', 'Days Pending'], 'pending_marks_report'),
             'pending_document': (admin_views._pending_documents_report_rows(request), ['Register No', 'Student', 'Type', 'Number', 'Missing Documents'], 'pending_documents_report'),
             'consolidated': (_consolidated_report_rows(consolidated_students, top_n), ['Register No', 'Student', 'Regular Average', 'Top N Average', 'Assessment Score', 'Final Score', 'Formula', 'Intermediate Included', 'Missing Marks'], 'consolidated_marks_report'),

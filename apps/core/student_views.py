@@ -2,15 +2,39 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Avg, Count
 from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks, Organisation, BreakRecord
 from .decorators import student_required
 from .forms import InternshipForm, BreakForm
 from .display import user_name_with_role
-from apps.utils.calculations import calculate_student_consolidated_marks
+from apps.utils.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
 from apps.utils.audit import log_action
 from apps.utils.notifications import send_notification
+
+
+def form_errors_payload(form):
+    return {
+        field: [str(error) for error in errors]
+        for field, errors in form.errors.items()
+    }
+
+
+def break_overlapping_internships(break_record):
+    return list(
+        break_record.student.internships.select_related('organisation').filter(
+            start_date__lte=break_record.end_date,
+            end_date__gte=break_record.start_date,
+        )
+    )
+
+
+def student_break_form(*args, student=None, **kwargs):
+    form = BreakForm(*args, **kwargs)
+    if student:
+        form.instance.student = student
+    return form
 
 
 def _notify_mentor_of_submission(student, internship):
@@ -120,6 +144,7 @@ def student_dashboard(request):
             'labels': [item['label'] for item in marks_by_internship],
             'data': [item['value'] for item in marks_by_internship],
         },
+        'internship_progress': calculate_student_internship_progress(student),
         'active_tab': 'student_dashboard'
     }
     return render(request, 'student/dashboard.html', context)
@@ -339,10 +364,19 @@ def my_breaks(request):
     if not student:
         return redirect('profile')
 
-    breaks = BreakRecord.objects.filter(student=student).select_related('approved_by').order_by('-start_date')
+    breaks = BreakRecord.objects.filter(student=student).order_by('-start_date')
+    break_rows = [
+        {
+            'break_record': break_record,
+            'overlaps': break_overlapping_internships(break_record),
+        }
+        for break_record in breaks
+    ]
+    break_form = student_break_form(instance=BreakRecord(student=student), student=student)
     return render(request, 'student/breaks.html', {
         'student': student,
-        'breaks': breaks,
+        'break_rows': break_rows,
+        'break_form': break_form,
         'active_tab': 'student_breaks',
     })
 
@@ -356,28 +390,102 @@ def break_add(request):
 
     instance = BreakRecord(student=student)
     if request.method == 'POST':
-        form = BreakForm(request.POST, request.FILES, instance=instance)
-        form.fields.pop('approved_by', None)
+        form = student_break_form(request.POST, request.FILES, instance=instance, student=student)
         if form.is_valid():
             break_record = form.save(commit=False)
             break_record.student = student
-            break_record.approved_by = None
             break_record.save()
             log_action(
                 request, 'CREATE', 'BreakRecord', record_id=break_record.id,
                 new_value=f'{student.register_number} - {break_record.get_break_type_display()}'
             )
-            messages.success(request, 'Break record submitted successfully!')
+            overlaps = break_overlapping_internships(break_record)
+            if overlaps:
+                messages.warning(request, f'Break overlaps with {len(overlaps)} internship period(s).')
+            messages.success(request, 'Break record saved successfully!')
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'redirect_url': reverse('student_breaks')})
             return redirect('student_breaks')
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'errors': form_errors_payload(form),
+            }, status=400)
     else:
-        form = BreakForm(instance=instance)
-        form.fields.pop('approved_by', None)
+        form = student_break_form(instance=instance, student=student)
 
-    return render(request, 'student/add_break.html', {
+    breaks = BreakRecord.objects.filter(student=student).order_by('-start_date')
+    break_rows = [
+        {
+            'break_record': break_record,
+            'overlaps': break_overlapping_internships(break_record),
+        }
+        for break_record in breaks
+    ]
+    return render(request, 'student/breaks.html', {
         'student': student,
+        'break_rows': break_rows,
+        'break_form': form,
+        'open_break_modal': request.method == 'POST',
         'form': form,
         'active_tab': 'student_breaks',
     })
+
+
+@student_required
+def break_edit(request, pk):
+    """Allow students to edit their own break record."""
+    student = require_logged_in_student(request)
+    if not student:
+        return redirect('profile')
+
+    break_record = get_object_or_404(BreakRecord, pk=pk, student=student)
+    if request.method == 'POST':
+        old_snapshot = f'{break_record.get_break_type_display()} {break_record.start_date} - {break_record.end_date}'
+        form = student_break_form(request.POST, request.FILES, instance=break_record, student=student)
+        if form.is_valid():
+            break_record = form.save(commit=False)
+            break_record.student = student
+            break_record.save()
+            log_action(
+                request, 'UPDATE', 'BreakRecord', record_id=break_record.id,
+                old_value=old_snapshot,
+                new_value=f'{break_record.get_break_type_display()} {break_record.start_date} - {break_record.end_date}'
+            )
+            overlaps = break_overlapping_internships(break_record)
+            if overlaps:
+                messages.warning(request, f'Break overlaps with {len(overlaps)} internship period(s).')
+            messages.success(request, 'Break record updated successfully.')
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'redirect_url': reverse('student_breaks')})
+            return redirect('student_breaks')
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'errors': form_errors_payload(form),
+            }, status=400)
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(request, f'{field}: {error}')
+    return redirect('student_breaks')
+
+
+@student_required
+def break_delete(request, pk):
+    """Allow students to delete their own break record."""
+    student = require_logged_in_student(request)
+    if not student:
+        return redirect('profile')
+
+    break_record = get_object_or_404(BreakRecord, pk=pk, student=student)
+    if request.method == 'POST':
+        log_action(
+            request, 'DELETE', 'BreakRecord', record_id=break_record.id,
+            old_value=f'{student.register_number} - {break_record.get_break_type_display()}'
+        )
+        break_record.delete()
+        messages.success(request, 'Break record deleted successfully!')
+    return redirect('student_breaks')
 
 @student_required
 def my_achievements(request):

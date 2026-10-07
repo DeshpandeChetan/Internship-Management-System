@@ -18,11 +18,13 @@
                         <th>Department</th>
                         <th>Programme</th>
                         <th>Batch</th>
+                        <th>Internship Progress</th>
                         <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for student in students %}
+                    {% for row in rows %}
+                    {% with student=row.student progress=row.progress %}
                     <tr>
                         <td>{{ student.register_number }}</td>
                         <td>{{ student.name }}</td>
@@ -31,14 +33,21 @@
                         <td>{{ student.programme.name|default:"-" }}</td>
                         <td>{{ student.batch.name|default:"-" }}</td>
                         <td>
+                            <div class="small fw-semibold">{{ progress.completed_required }}/{{ progress.total_required }} ({{ progress.overall_percent }}%)</div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar" style="width: {{ progress.overall_percent }}%;"></div>
+                            </div>
+                        </td>
+                        <td>
                             <span class="badge bg-{% if student.status == 'active' %}success{% elif student.status == 'completed' %}info{% elif student.status == 'on_break' %}warning{% else %}danger{% endif %}">
                                 {{ student.get_status_display }}
                             </span>
                         </td>
                     </tr>
+                    {% endwith %}
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center">No students found</td>
+                        <td colspan="8" class="text-center">No students found</td>
                     </tr>
                     {% endfor %}
                 </tbody>

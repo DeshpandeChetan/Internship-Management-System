@@ -9,6 +9,7 @@ from .decorators import mentor_required
 from .display import user_name_with_role
 from apps.utils.audit import log_action
 from apps.utils.notifications import send_notification, send_bulk_notification
+from apps.utils.calculations import calculate_student_internship_progress
 
 
 def get_assigned_student_ids(request):
@@ -101,6 +102,7 @@ def assigned_students(request):
         rows.append({
             'assignment': assignment,
             'latest_internship': latest_internship,
+            'progress': calculate_student_internship_progress(assignment.student),
         })
     return render(request, 'mentor/students.html', {
         'rows': rows,
@@ -117,6 +119,7 @@ def student_detail(request, pk):
         faculty_mentor=request.user.profile,
         is_active=True
     ).first()
+    breaks = student.breaks.order_by('-start_date')
 
     return JsonResponse({
         'register_number': student.register_number,
@@ -131,6 +134,23 @@ def student_detail(request, pk):
         'total_internships': internships.count(),
         'completed_internships': internships.filter(completion_status='completed').count(),
         'pending_verifications': internships.filter(verification_status='submitted').count(),
+        'internship_progress': calculate_student_internship_progress(student),
+        'break_history': [
+            {
+                'break_type': break_record.get_break_type_display(),
+                'period': f"{break_record.start_date.strftime('%d %b %Y')} - {break_record.end_date.strftime('%d %b %Y')}",
+                'impact': break_record.impact_on_internship or '-',
+                'remarks': break_record.remarks or '-',
+                'overlaps': [
+                    f"{internship.internship_number} - {internship.organisation.name}"
+                    for internship in break_record.student.internships.select_related('organisation').filter(
+                        start_date__lte=break_record.end_date,
+                        end_date__gte=break_record.start_date,
+                    )
+                ],
+            }
+            for break_record in breaks
+        ],
         'internships': [
             {
                 'number': internship.internship_number,
@@ -263,6 +283,7 @@ def internship_detail(request, pk):
         'created_by': internship.created_by.get_full_name() or internship.created_by.email if internship.created_by else '-',
         'updated_by': internship.updated_by.get_full_name() or internship.updated_by.email if internship.updated_by else '-',
         'verified_by': user_name_with_role(internship.verified_by),
+        'student_progress': calculate_student_internship_progress(internship.student),
     })
 
 @mentor_required

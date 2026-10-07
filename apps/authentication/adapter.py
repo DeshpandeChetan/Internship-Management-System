@@ -141,7 +141,6 @@
 
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.contrib.auth.models import User
-from django.shortcuts import redirect
 from django.urls import reverse
 from django.contrib import messages
 from apps.authentication.models import UserProfile  # Correct import
@@ -151,6 +150,39 @@ logger = logging.getLogger(__name__)
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     """Custom adapter for Google OAuth login"""
+
+    def pre_social_login(self, request, sociallogin):
+        """
+        Link Google login to an existing admin-created user by email.
+
+        Admin-created users do not have a SocialAccount row yet, so without this
+        allauth treats the Google identity as a new social signup.
+        """
+        if sociallogin.is_existing:
+            return
+
+        email = self._get_social_email(sociallogin)
+        if not email:
+            messages.error(request, 'Email not found from Google account.')
+            return
+
+        existing_user = User.objects.filter(email__iexact=email).first()
+        if not existing_user:
+            return
+
+        sociallogin.connect(request, existing_user)
+        logger.info("Linked Google account for existing user %s", existing_user.email)
+
+    def _get_social_email(self, sociallogin):
+        for email_address in sociallogin.email_addresses:
+            if email_address.email:
+                return email_address.email.strip().lower()
+
+        email = sociallogin.account.extra_data.get('email')
+        if email:
+            return email.strip().lower()
+
+        return ''
     
     def save_user(self, request, sociallogin, form=None):
         user = super().save_user(request, sociallogin, form)

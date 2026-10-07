@@ -6,25 +6,47 @@
 
 {% block extra_css %}
 <style>
-    @media (min-width: 769px) {
-        .data-table-wrapper .table-responsive { overflow-x: visible !important; overflow-y: visible !important; }
-        #breaksTable { width: 100% !important; }
-        #breaksTable th, #breaksTable td { white-space: nowrap; }
-        #breaksTable td:last-child { overflow: visible !important; }
-        .dataTables_wrapper { width: 100% !important; overflow: visible !important; }
-        .data-table-wrapper { overflow: visible !important; }
+    .admin-breaks-table {
+        max-width: 100%;
+        overflow: hidden;
     }
-    @media (max-width: 768px) {
-        .dataTables_wrapper { overflow-x: auto !important; }
-        .table-responsive { overflow-x: auto !important; }
+    .admin-breaks-table .table-responsive {
+        max-width: 100%;
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    .admin-breaks-table .dataTables_wrapper {
+        width: 100% !important;
+        max-width: 100%;
+    }
+    #breaksTable {
+        width: 100% !important;
+        min-width: 900px;
+    }
+    #breaksTable th,
+    #breaksTable td {
+        vertical-align: middle;
+    }
+    #breaksTable th:nth-child(1),
+    #breaksTable td:nth-child(1),
+    #breaksTable th:nth-child(6),
+    #breaksTable td:nth-child(6) {
+        white-space: normal;
+        min-width: 180px;
+    }
+    #breaksTable th:nth-child(7),
+    #breaksTable td:nth-child(7) {
+        min-width: 130px;
+        white-space: nowrap;
     }
     div.dataTables_wrapper div.dataTables_length select { min-width: 70px; }
-    .dropdown-menu { z-index: 9999 !important; position: absolute; }
+    .admin-breaks-table .dropdown { position: static; }
+    .admin-breaks-table .dropdown-menu { z-index: 9999 !important; }
     .dropdown-item { cursor: pointer; padding: 8px 16px; font-size: 0.85rem; }
     .dropdown-item i { width: 18px; text-align: center; }
     .dropdown-item:hover { background-color: #f8f9fa; }
     body.modal-open { overflow-y: auto !important; padding-right: 0 !important; }
-    .data-table-wrapper, .dataTables_wrapper, .table-responsive { overflow: visible !important; }
     
     .dataTables_wrapper .dataTables_filter {
         display: flex;
@@ -97,7 +119,7 @@
 </div>
 
 <!-- Breaks Table -->
-<div class="data-table-wrapper">
+<div class="data-table-wrapper admin-breaks-table">
     <div class="table-responsive">
         <table class="table table-hover table-bordered align-middle" id="breaksTable">
             <thead>
@@ -107,7 +129,6 @@
                     <th>Start Date</th>
                     <th>End Date</th>
                     <th>Duration</th>
-                    <th>Approved By</th>
                     <th>Reason</th>
                     <th>Actions</th>
                 </tr>
@@ -127,11 +148,10 @@
                     <td>{{ break_record.start_date|date:"d M Y" }}</td>
                     <td>{{ break_record.end_date|date:"d M Y" }}</td>
                     <td>{{ break_record.start_date|timesince:break_record.end_date }}</td>
-                    <td>{{ break_record.approved_by.get_full_name|default:break_record.approved_by.email|default:"-" }}</td>
                     <td>{{ break_record.reason|truncatechars:30|default:"-" }}</td>
                     <td>
                         <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false">
                                 <i class="fas fa-ellipsis-v"></i> Actions
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
@@ -190,22 +210,11 @@
                                             <input type="date" name="end_date" value="{{ break_record.end_date|date:'Y-m-d' }}" class="form-control" required>
                                         </div>
                                         <div class="col-md-12 mb-3">
-                                            <label class="form-label">Approved By Authority</label>
-                                            <select name="approved_by" class="form-select">
-                                                <option value="">Select Authority</option>
-                                                {% for approver in approvers %}
-                                                <option value="{{ approver.id }}" {% if break_record.approved_by_id == approver.id %}selected{% endif %}>
-                                                    {{ approver.get_full_name|default:approver.email }}
-                                                </option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="col-md-12 mb-3">
                                             <label class="form-label">Reason</label>
                                             <textarea name="reason" class="form-control" rows="2">{{ break_record.reason }}</textarea>
                                         </div>
                                         <div class="col-md-12 mb-3">
-                                            <label class="form-label">Impact on Internship</label>
+                                            <label class="form-label">Impact on Internship/Assessment</label>
                                             <textarea name="impact_on_internship" class="form-control" rows="2">{{ break_record.impact_on_internship }}</textarea>
                                         </div>
                                         <div class="col-md-12 mb-3">
@@ -255,7 +264,7 @@
 
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="text-center py-4">
+                    <td colspan="7" class="text-center py-4">
                         <i class="fas fa-pause fa-2x text-muted d-block mb-2"></i>
                         No break records found
                     </td>
@@ -306,20 +315,11 @@
                             <input type="date" name="end_date" class="form-control" required>
                         </div>
                         <div class="col-md-12 mb-3">
-                            <label class="form-label">Approved By Authority</label>
-                            <select name="approved_by" class="form-select">
-                                <option value="">Select Authority</option>
-                                {% for approver in approvers %}
-                                <option value="{{ approver.id }}">{{ approver.get_full_name|default:approver.email }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-12 mb-3">
                             <label class="form-label">Reason</label>
                             <textarea name="reason" class="form-control" rows="2"></textarea>
                         </div>
                         <div class="col-md-12 mb-3">
-                            <label class="form-label">Impact on Internship</label>
+                            <label class="form-label">Impact on Internship/Assessment</label>
                             <textarea name="impact_on_internship" class="form-control" rows="2"></textarea>
                         </div>
                         <div class="col-md-12 mb-3">
@@ -359,12 +359,11 @@ function viewBreak(id) {
                     </div>
                     <div class="col-md-6">
                         <p><strong>Duration:</strong> ${data.duration}</p>
-                        <p><strong>Approved By Authority:</strong> ${data.approved_by}</p>
                         <p><strong>Reason:</strong> ${data.reason}</p>
                         ${data.document ? `<p><strong>Document:</strong> <a href="${data.document}" target="_blank">View</a></p>` : '<p><strong>Document:</strong> -</p>'}
                     </div>
                     <div class="col-12">
-                        ${data.impact ? `<p><strong>Impact on Internship:</strong> ${data.impact}</p>` : ''}
+                        ${data.impact ? `<p><strong>Impact on Internship/Assessment:</strong> ${data.impact}</p>` : ''}
                         ${data.remarks ? `<p><strong>Remarks:</strong> ${data.remarks}</p>` : ''}
                         <p><strong>Overlaps Internship Period:</strong> ${data.overlaps.length ? 'Yes' : 'No'}</p>
                         ${data.overlaps.length ? `

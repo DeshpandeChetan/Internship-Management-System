@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from .models import Student, InternshipRecord, ConsolidatedScore, AssessmentMarks
 from .decorators import hod_required
-from apps.utils.calculations import calculate_student_consolidated_marks
+from apps.utils.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
 from apps.utils.audit import log_action
 
 @hod_required
@@ -64,7 +64,14 @@ def student_list(request):
     students = Student.objects.select_related('department', 'programme', 'batch')
     if request.user.profile.department_id:
         students = students.filter(department=request.user.profile.department)
-    return render(request, 'hod/students.html', {'students': students, 'active_tab': 'hod_students'})
+    rows = [
+        {
+            'student': student,
+            'progress': calculate_student_internship_progress(student),
+        }
+        for student in students
+    ]
+    return render(request, 'hod/students.html', {'rows': rows, 'active_tab': 'hod_students'})
 
 @hod_required
 def reports(request):

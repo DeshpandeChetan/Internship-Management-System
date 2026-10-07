@@ -107,27 +107,27 @@
 <!-- Charts -->
 <div class="row g-3 g-md-4 mt-3">
     <div class="col-lg-4 col-md-6">
-        <div class="card h-100">
+        <div class="card h-100 dashboard-chart-card">
             <div class="card-header"><h6 class="mb-0">Internship Verification</h6></div>
-            <div class="card-body"><canvas id="verificationChart" height="150"></canvas></div>
+            <div class="card-body dashboard-chart-body"><canvas id="verificationChart"></canvas></div>
         </div>
     </div>
     <div class="col-lg-4 col-md-6">
-        <div class="card h-100">
+        <div class="card h-100 dashboard-chart-card">
             <div class="card-header"><h6 class="mb-0">Internship Types</h6></div>
-            <div class="card-body"><canvas id="typeChart" height="150"></canvas></div>
+            <div class="card-body dashboard-chart-body"><canvas id="typeChart"></canvas></div>
         </div>
     </div>
     <div class="col-lg-4 col-md-6">
-        <div class="card h-100">
+        <div class="card h-100 dashboard-chart-card">
             <div class="card-header"><h6 class="mb-0">Student Status</h6></div>
-            <div class="card-body"><canvas id="studentStatusChart" height="150"></canvas></div>
+            <div class="card-body dashboard-chart-body"><canvas id="studentStatusChart"></canvas></div>
         </div>
     </div>
     <div class="col-lg-4 col-md-6">
-        <div class="card h-100">
+        <div class="card h-100 dashboard-chart-card">
             <div class="card-header"><h6 class="mb-0">Assessment Status</h6></div>
-            <div class="card-body"><canvas id="marksStatusChart" height="150"></canvas></div>
+            <div class="card-body dashboard-chart-body"><canvas id="marksStatusChart"></canvas></div>
         </div>
     </div>
 </div>
@@ -258,8 +258,18 @@ function dashboardChart(canvasId, scriptId, type) {
         },
         options: {
             responsive: true,
-            plugins: { legend: { position: 'bottom' } },
-            scales: type === 'bar' ? { y: { beginAtZero: true, ticks: { precision: 0 } } } : {}
+            maintainAspectRatio: false,
+            layout: { padding: 2 },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 10, padding: 8, font: { size: 11 } }
+                }
+            },
+            scales: type === 'bar' ? {
+                x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true } },
+                y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } }
+            } : {}
         }
     });
 }

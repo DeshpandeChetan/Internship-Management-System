@@ -84,7 +84,7 @@
 </div>
 
 {% for row in assessment_rows %}
-{% with internship=row.internship form=row.form %}
+{% with internship=row.internship form=row.form internship_progress=row.internship_progress %}
 <div class="modal fade" id="enterMarksModal{{ internship.id }}" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -107,6 +107,7 @@
                             <p><strong>Period:</strong> {{ internship.start_date|date:"d M Y" }} - {{ internship.end_date|date:"d M Y" }}</p>
                         </div>
                     </div>
+                    {% include 'includes/internship_progress.html' %}
 
                     {% for field in form %}
                         {% if field.is_hidden %}

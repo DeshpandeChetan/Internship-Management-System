@@ -94,10 +94,11 @@ class InternshipRecordAdmin(admin.ModelAdmin):
 
 @admin.register(BreakRecord)
 class BreakRecordAdmin(admin.ModelAdmin):
-    list_display = ('student', 'break_type', 'start_date', 'end_date', 'approved_by', 'created_on')
+    list_display = ('student', 'break_type', 'start_date', 'end_date', 'created_on')
     list_filter = ('break_type', 'start_date', 'end_date')
     search_fields = ('student__register_number', 'student__name', 'reason', 'remarks')
-    raw_id_fields = ('student', 'approved_by')
+    raw_id_fields = ('student',)
+    exclude = ('approved_by',)
     date_hierarchy = 'created_on'
     readonly_fields = ('created_on', 'updated_on')
 

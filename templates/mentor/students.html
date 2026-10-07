@@ -17,6 +17,7 @@
                         <th>Email</th>
                         <th>Programme</th>
                         <th>Batch</th>
+                        <th>Progress</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -29,22 +30,17 @@
                         <td>{{ assignment.student.email }}</td>
                         <td>{{ assignment.student.programme.code }}</td>
                         <td>{{ assignment.student.batch.name }}</td>
+                        <td>{{ row.progress.completed_required }}/{{ row.progress.total_required }}</td>
                         <td>
-                            {% if latest_internship %}
-                            <button type="button" class="btn btn-sm btn-info" onclick="viewInternship('{{ latest_internship.id }}')">
+                            <button type="button" class="btn btn-sm btn-info" onclick="viewStudent('{{ assignment.student.id }}')">
                                 <i class="fas fa-eye"></i> View
                             </button>
-                            {% else %}
-                            <button type="button" class="btn btn-sm btn-secondary" disabled>
-                                <i class="fas fa-eye"></i> No Internship
-                            </button>
-                            {% endif %}
                         </td>
                     </tr>
                     {% endwith %}
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center">No students assigned</td>
+                        <td colspan="7" class="text-center">No students assigned</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -57,39 +53,94 @@
 
 {% block extra_js %}
 <script>
-    function viewInternship(id) {
-        fetch(`/dashboard/mentor/internships/${id}/`)
+    function renderProgress(progress) {
+        const typeSummary = (progress.type_summary || []).map(function(item) {
+            return `<div class="col-md-6 mb-2">
+                <div class="small">
+                    <strong>${item.label}:</strong> ${item.count}
+                    <div class="text-muted">${item.description}</div>
+                </div>
+            </div>`;
+        }).join('');
+
+        return `
+            <h6 class="mt-3">Internship Progress</h6>
+            <div class="border rounded p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold">Overall Completion</span>
+                    <span class="badge bg-primary">${progress.overall_percent || 0}%</span>
+                </div>
+                <div class="progress mb-3" style="height: 10px;">
+                    <div class="progress-bar" style="width: ${progress.overall_percent || 0}%;"></div>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Regular Internships:</strong> ${progress.regular_completed || 0}/${progress.regular_required || 0}</p>
+                        <p class="text-muted small mb-0">${progress.regular_pending || 0} pending</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Assessment Internship:</strong> ${progress.assessment_status || 'Pending'}</p>
+                        <p class="text-muted small mb-0">${progress.assessment_enabled ? `${progress.assessment_duration_months} month requirement` : 'Not enabled'}</p>
+                    </div>
+                </div>
+                <div class="row mt-2">${typeSummary}</div>
+            </div>
+        `;
+    }
+
+    function viewStudent(id) {
+        fetch(`/dashboard/mentor/students/${id}/`)
             .then(response => response.json())
             .then(data => {
+                const internshipsHtml = data.internships && data.internships.length ? data.internships.map(function(item) {
+                    return `<tr>
+                        <td>${item.number}</td>
+                        <td>${item.type}</td>
+                        <td>${item.organisation}</td>
+                        <td>${item.period}</td>
+                        <td>${item.status}</td>
+                        <td>${item.verification}</td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="6" class="text-center">No internships found</td></tr>';
+                const breakHistoryHtml = data.break_history && data.break_history.length ? data.break_history.map(function(item) {
+                    return `<tr>
+                        <td>${item.break_type}</td>
+                        <td>${item.period}</td>
+                        <td>${item.overlaps && item.overlaps.length ? item.overlaps.join(', ') : 'No overlap'}</td>
+                        <td>${item.impact}${item.remarks && item.remarks !== '-' ? `<div class="text-muted small">${item.remarks}</div>` : ''}</td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="4" class="text-center">No break records found</td></tr>';
+
                 document.getElementById('viewModalBody').innerHTML = `
                     <div class="row details-grid">
                         <div class="col-md-6">
-                            <p><strong>Student:</strong> ${data.student}</p>
-                            <p><strong>Type:</strong> ${data.type}</p>
-                            <p><strong>Number:</strong> ${data.number}</p>
-                            <p><strong>Academic Phase:</strong> ${data.academic_phase}</p>
-                            <p><strong>Organisation:</strong> ${data.organisation}</p>
-                            <p><strong>Semester:</strong> ${data.semester}</p>
-                            <p><strong>Period:</strong> ${data.period}</p>
-                            <p><strong>Duration:</strong> ${data.duration}</p>
-                            <p><strong>Mode:</strong> ${data.mode}</p>
-                            <p><strong>Status:</strong> ${data.completion_status}</p>
+                            <p><strong>Register Number:</strong> ${data.register_number}</p>
+                            <p><strong>Name:</strong> ${data.name}</p>
+                            <p><strong>Email:</strong> ${data.email}</p>
+                            <p><strong>Mobile:</strong> ${data.mobile}</p>
                         </div>
                         <div class="col-md-6">
-                            <p><strong>Verification:</strong> ${data.verification_status}</p>
-                            <p><strong>Submission Date:</strong> ${data.submission_date}</p>
-                            <p><strong>Certificate:</strong> ${data.certificate ? `<a href="${data.certificate}" target="_blank">View certificate</a>` : '-'}</p>
-                            <p><strong>Report:</strong> ${data.report ? `<a href="${data.report}" target="_blank">View report</a>` : '-'}</p>
-                            <p><strong>Other Document:</strong> ${data.document ? `<a href="${data.document}" target="_blank">View uploaded file</a>` : '-'}</p>
-                            <p><strong>Date Override:</strong> ${data.date_override}</p>
-                            <p><strong>Overlaps Break:</strong> ${data.break_overlap}</p>
-                            <p><strong>Nature of Work:</strong> ${data.nature_of_work}</p>
-                            <p><strong>Remarks:</strong> ${data.remarks}</p>
-                            <p><strong>Added By:</strong> ${data.created_by}</p>
-                            <p><strong>Last Edited By:</strong> ${data.updated_by}</p>
-                            <p><strong>Verified By:</strong> ${data.verified_by}</p>
+                            <p><strong>Programme:</strong> ${data.programme}</p>
+                            <p><strong>Batch:</strong> ${data.batch}</p>
+                            <p><strong>Degree Period:</strong> ${data.degree_period}</p>
+                            <p><strong>Status:</strong> ${data.status}</p>
+                            <p><strong>Mentor Since:</strong> ${data.mentor_since}</p>
                         </div>
-                        ${data.overlapping_breaks.length ? `<div class="col-12"><p><strong>Break Details:</strong> ${data.overlapping_breaks.join(', ')}</p></div>` : ''}
+                    </div>
+                    ${renderProgress(data.internship_progress || {})}
+                    <h6 class="mt-3">Internships</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead><tr><th>#</th><th>Type</th><th>Organisation</th><th>Period</th><th>Status</th><th>Verification</th></tr></thead>
+                            <tbody>${internshipsHtml}</tbody>
+                        </table>
+                    </div>
+                    <h6 class="mt-3">Break History</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead><tr><th>Type</th><th>Period</th><th>Overlap</th><th>Impact / Remarks</th></tr></thead>
+                            <tbody>${breakHistoryHtml}</tbody>
+                        </table>
                     </div>
                 `;
                 new bootstrap.Modal(document.getElementById('viewModal')).show();

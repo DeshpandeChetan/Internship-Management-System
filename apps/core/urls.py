@@ -130,6 +130,8 @@ urlpatterns = [
     path('student/marks/', student_views.my_marks, name='my_marks'),
     path('student/breaks/', student_views.my_breaks, name='student_breaks'),
     path('student/breaks/add/', student_views.break_add, name='student_add_break'),
+    path('student/breaks/<uuid:pk>/edit/', student_views.break_edit, name='student_break_edit'),
+    path('student/breaks/<uuid:pk>/delete/', student_views.break_delete, name='student_break_delete'),
     
     # ============================================
     # MENTOR URLS

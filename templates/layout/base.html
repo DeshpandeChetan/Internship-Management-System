@@ -236,6 +236,29 @@
             color: var(--dark);
         }
 
+        /* Medium dashboard charts */
+        .dashboard-chart-card .card-header {
+            padding: 0.65rem 1rem;
+        }
+
+        .dashboard-chart-body {
+            height: clamp(220px, 24vw, 290px);
+            padding: 0.9rem 1rem 0.7rem;
+            position: relative;
+        }
+
+        .dashboard-chart-body canvas {
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+        }
+
+        @media (max-width: 767.98px) {
+            .dashboard-chart-body {
+                height: 230px;
+            }
+        }
+
         /* Buttons */
         .btn-primary {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -366,13 +389,13 @@
                         <li><a class="dropdown-item" href="{% url 'profile' %}">
                                 <i class="fas fa-user-circle me-2"></i> Profile
                             </a></li>
-                        <li>
+                        <!-- <li>
                             <hr class="dropdown-divider">
                         </li>
                         <li><a class="dropdown-item text-danger" href="#"
                                 onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                                 <i class="fas fa-sign-out-alt me-2"></i> Logout
-                            </a></li>
+                            </a></li> -->
                     </ul>
                 </div>
             </div>
@@ -535,6 +558,220 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
+        (function ($) {
+            if (!$ || !$.fn || !$.fn.DataTable) return;
+
+            if ($.fn.dataTable && $.fn.dataTable.defaults) {
+                $.extend(true, $.fn.dataTable.defaults, {
+                    language: {
+                        emptyTable: 'No data available',
+                        zeroRecords: 'No matching records found'
+                    }
+                });
+            }
+
+            function normalizeDataTableEmptyRows(tables) {
+                tables.each(function () {
+                    const table = this;
+                    const headerCellCount = $(table).find('thead tr').last().children('th, td').length;
+                    const bodyRows = $(table).find('tbody tr');
+
+                    if (!headerCellCount || bodyRows.length !== 1) return;
+
+                    const cells = bodyRows.eq(0).children('th, td');
+                    if (cells.length !== 1) return;
+
+                    const colspan = parseInt(cells.eq(0).attr('colspan') || '1', 10);
+                    if (colspan >= headerCellCount) {
+                        bodyRows.eq(0).remove();
+                    }
+                });
+            }
+
+            const originalDataTable = $.fn.DataTable;
+            $.fn.DataTable = function () {
+                normalizeDataTableEmptyRows(this);
+                return originalDataTable.apply(this, arguments);
+            };
+            $.extend($.fn.DataTable, originalDataTable);
+
+            if ($.fn.dataTable) {
+                const originalLowercaseDataTable = $.fn.dataTable;
+                $.fn.dataTable = function () {
+                    normalizeDataTableEmptyRows(this);
+                    return originalLowercaseDataTable.apply(this, arguments);
+                };
+                $.extend($.fn.dataTable, originalLowercaseDataTable);
+            }
+        })(window.jQuery);
+
+        (function () {
+            const mobileFieldNames = ['mobile', 'phone_number'];
+
+            function isMobileField(input) {
+                const name = (input.getAttribute('name') || '').toLowerCase();
+                return mobileFieldNames.some(fieldName => name === fieldName || name.includes(fieldName));
+            }
+
+            function applyMobileConstraints(root) {
+                (root || document).querySelectorAll('input').forEach(function (input) {
+                    if (!isMobileField(input)) return;
+
+                    input.setAttribute('type', 'text');
+                    input.setAttribute('inputmode', 'numeric');
+                    input.setAttribute('maxlength', '10');
+                    input.setAttribute('minlength', '10');
+                    input.setAttribute('pattern', '\\d{10}');
+                    input.setAttribute('autocomplete', 'tel');
+                    input.setAttribute('title', 'Enter a valid 10 digit mobile number');
+                });
+            }
+
+            function validateMobileInputs(form) {
+                let firstInvalid = null;
+                form.querySelectorAll('input').forEach(function (input) {
+                    if (!isMobileField(input)) return;
+
+                    const digitsOnly = input.value.replace(/\D/g, '').slice(0, 10);
+                    if (input.value !== digitsOnly) input.value = digitsOnly;
+
+                    if (digitsOnly && digitsOnly.length !== 10) {
+                        input.setCustomValidity('Enter a valid 10 digit mobile number.');
+                        firstInvalid = firstInvalid || input;
+                    } else {
+                        input.setCustomValidity('');
+                    }
+                });
+                return firstInvalid;
+            }
+
+            function clearModalFormErrors(form) {
+                form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+                form.querySelectorAll('.ajax-invalid-feedback').forEach(el => el.remove());
+                const alert = form.querySelector('.modal-form-alert');
+                if (alert) {
+                    alert.className = 'modal-form-alert d-none';
+                    alert.innerHTML = '';
+                }
+            }
+
+            function showModalFormErrors(form, errors) {
+                clearModalFormErrors(form);
+                const alert = form.querySelector('.modal-form-alert');
+                const nonFieldErrors = [];
+                let firstInvalid = null;
+
+                Object.entries(errors || {}).forEach(function ([fieldName, messages]) {
+                    if (fieldName === '__all__') {
+                        nonFieldErrors.push(...messages);
+                        return;
+                    }
+
+                    const field = form.querySelector(`[name="${fieldName}"]`);
+                    if (!field) {
+                        nonFieldErrors.push(...messages);
+                        return;
+                    }
+
+                    field.classList.add('is-invalid');
+                    const feedback = document.createElement('div');
+                    feedback.className = 'invalid-feedback d-block ajax-invalid-feedback';
+                    feedback.innerHTML = messages.join('<br>');
+                    field.insertAdjacentElement('afterend', feedback);
+                    firstInvalid = firstInvalid || field;
+                });
+
+                if (alert && nonFieldErrors.length) {
+                    alert.className = 'modal-form-alert alert alert-danger';
+                    alert.innerHTML = nonFieldErrors.join('<br>');
+                }
+
+                if (firstInvalid) {
+                    firstInvalid.focus();
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            function showClientValidationErrors(form) {
+                let firstInvalid = null;
+                form.querySelectorAll(':invalid').forEach(function (field) {
+                    field.classList.add('is-invalid');
+                    const feedback = document.createElement('div');
+                    feedback.className = 'invalid-feedback d-block ajax-invalid-feedback';
+                    feedback.textContent = field.validationMessage || 'Please enter a valid value.';
+                    field.insertAdjacentElement('afterend', feedback);
+                    firstInvalid = firstInvalid || field;
+                });
+
+                if (firstInvalid) {
+                    firstInvalid.focus();
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            document.addEventListener('input', function (event) {
+                const input = event.target;
+                if (!(input instanceof HTMLInputElement) || !isMobileField(input)) return;
+
+                input.value = input.value.replace(/\D/g, '').slice(0, 10);
+                if (!input.value || input.value.length === 10) {
+                    input.setCustomValidity('');
+                }
+            });
+
+            document.addEventListener('submit', function (event) {
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement) || !form.closest('.modal')) return;
+
+                clearModalFormErrors(form);
+                const mobileInvalid = validateMobileInputs(form);
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    form.classList.add('was-validated');
+                    showClientValidationErrors(form);
+                    if (mobileInvalid) mobileInvalid.focus();
+                    return;
+                }
+
+                if (form.dataset.modalAjax !== 'true') return;
+
+                event.preventDefault();
+                const submitButton = form.querySelector('[type="submit"]');
+                if (submitButton) submitButton.disabled = true;
+
+                fetch(form.action, {
+                    method: form.method || 'POST',
+                    body: new FormData(form),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(async function (response) {
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok || data.success === false) {
+                            showModalFormErrors(form, data.errors || { '__all__': ['Please correct the highlighted fields.'] });
+                            return;
+                        }
+                        window.location.href = data.redirect_url || response.url || window.location.href;
+                    })
+                    .catch(function () {
+                        showModalFormErrors(form, { '__all__': ['Unable to submit the form. Please try again.'] });
+                    })
+                    .finally(function () {
+                        if (submitButton) submitButton.disabled = false;
+                    });
+            }, true);
+
+            document.addEventListener('DOMContentLoaded', function () {
+                applyMobileConstraints(document);
+            });
+
+            document.addEventListener('shown.bs.modal', function (event) {
+                applyMobileConstraints(event.target);
+            });
+        })();
+
         // Sidebar toggle for mobile
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebarOverlay');

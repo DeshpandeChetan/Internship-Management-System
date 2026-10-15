@@ -14,8 +14,7 @@ and internship completion progress through role-specific dashboards.
 
 ## Technologies
 
-Python, Django, SQLite, django-allauth, crispy forms with Bootstrap 5, Pillow,
-pandas/openpyxl for spreadsheets, and ReportLab for PDFs. Templates use Bootstrap,
+Python, Django, SQLite, django-allauth, Bootstrap 5. Templates use Bootstrap,
 jQuery, DataTables, Chart.js, and Select2, including CDN-hosted assets.
 
 ## Installation
@@ -40,7 +39,6 @@ Configuration lives in `ims/settings.py`. The current project does not load a
 
 - SQLite database: `db.sqlite3` at the project root.
 - Uploads: `media/`, served at `/media/` during development.
-- Time zone: `Asia/Kolkata`.
 - Django Sites: `SITE_ID = 1`.
 - Authentication adapters: `apps.authentication.adapter`.
 
@@ -57,9 +55,6 @@ Use the exact host and scheme used to open the application.
 
 After migrations, sign into Django admin at `/admin/`, configure Site 1 for your
 host, and create a Social Application for Google with the client ID and secret.
-Associate it with Site 1. Use the corresponding HTTPS callback for deployment.
-Google credentials are stored through allauth; the project does not automatically
-read `client_secret.json`. Admin-created accounts retain their assigned roles.
 
 ## Database and Running
 

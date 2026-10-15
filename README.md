@@ -14,8 +14,7 @@ and internship completion progress through role-specific dashboards.
 
 ## Technologies
 
-Python, Django, SQLite, django-allauth, crispy forms with Bootstrap 5, Pillow,
-pandas/openpyxl for spreadsheets, and ReportLab for PDFs. Templates use Bootstrap,
+Python, Django, SQLite, django-allauth, Bootstrap 5. Templates use Bootstrap,
 jQuery, DataTables, Chart.js, and Select2, including CDN-hosted assets.
 
 ## Prerequisites
@@ -104,7 +103,6 @@ variables by this configuration.
 
 - SQLite database: `db.sqlite3` at the project root.
 - Uploads: `media/`, served at `/media/` during development.
-- Time zone: `Asia/Kolkata`.
 - Django Sites: `SITE_ID = 1`.
 - Authentication adapters: `apps.authentication.adapter`.
 - Development defaults: `DEBUG = True` and `ALLOWED_HOSTS = ['*']`.
@@ -124,6 +122,14 @@ Keep credentials and uploaded user content out of Git. The existing
 For a fresh installation with the virtual environment active:
 
 ```text
+After migrations, sign into Django admin at `/admin/`, configure Site 1 for your
+host, and create a Social Application for Google with the client ID and secret.
+
+## Database and Running
+
+For a new installation:
+
+```powershell
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py check

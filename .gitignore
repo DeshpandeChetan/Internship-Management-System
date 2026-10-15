@@ -14,4 +14,10 @@ venv/
 
 client_secret.json
 
+# Uploaded user content and generated backups
+/media/
+/backups/data/
+*.sqlite3.bak
+*.sqlite3.backup
+
 *.pyc

@@ -196,28 +196,6 @@ python manage.py makemigrations --check --dry-run
 Existing checks may warn about a missing `static/` directory and deprecated
 allauth settings. These are existing configuration issues.
 
-## Troubleshooting
-
-| Symptom | What to check |
-| --- | --- |
-| `python` or `git` not found | Install the missing tool and reopen the terminal; on Windows try `py`, and on macOS/Linux try `python3`. |
-| PowerShell blocks activation | Use Command Prompt activation, or run commands directly with `.\venv\Scripts\python.exe`, for example `.\venv\Scripts\python.exe manage.py check`. |
-| `venv`/`ensurepip` unavailable on Linux | Install your operating system's venv package for the selected Python version, then recreate the environment. |
-| `No module named django`, `pandas`, `openpyxl`, `reportlab`, `requests`, or `cryptography` | Activate the correct environment and run both dependency installation commands above using `python -m pip`. |
-| Package install fails | Check Python compatibility, network/proxy access, and that pip is updated. Do not reuse a virtual environment copied from another machine. |
-| `No module named ims` or `manage.py` not found | Run from the cloned repository root and check `DJANGO_SETTINGS_MODULE`. |
-| `no such table` or unapplied migrations | Run `python manage.py migrate`; inspect `python manage.py showmigrations`. Do not delete the database to fix this. |
-| Google `redirect_uri_mismatch` | Compare the registered URI character-for-character with the running host, port, scheme, callback path, and trailing slash. |
-| Google login reports no application or multiple applications | Configure exactly one Google Social Application for Site 1 with its client ID/secret. |
-| Google access denied during testing | Check the consent-screen audience, test users, and the selected Google account. |
-| Pending approval/deactivated message | Use an authorized admin to review the user's profile/status; this is account authorization, not an installation error. |
-| Missing profile | Ask an administrator to check the user's `UserProfile`; creating a superuser through the documented command creates its admin profile. |
-| Port already in use | Choose another port and update OAuth/Site configuration as described above. |
-| Missing static directory warning | Settings reference a root `static/` directory that is absent. For local development, create it with `mkdir static` if needed; this does not download CDN assets. |
-| Deprecated allauth settings warnings | These come from the existing settings. They do not prevent the current checks from completing; version upgrades may require a separate configuration update. |
-| Charts, tables, or styles fail to load | Check browser network errors and access to the CDN assets referenced by the templates. |
-| Upload cannot be saved or an existing document is missing | Check write permissions on `media/`; clones do not contain previous uploads. Restore the matching media backup when using an existing database. |
-
 ## Backups
 
 ```powershell

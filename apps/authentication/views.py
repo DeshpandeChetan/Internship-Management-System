@@ -13,6 +13,8 @@ def redirect_to_role_dashboard(request):
         return redirect('login')
 
     profile = request.user.profile
+    if profile.role == 'unassigned':
+        return redirect('profile')
     if not profile.is_approved:
         messages.warning(request, 'Your account is pending admin approval.')
         return render(request, 'accounts/pending_approval.html', {'hide_sidebar': True})

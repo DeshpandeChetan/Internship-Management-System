@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.shortcuts import render, redirect, get_object_or_404
+from .form_responses import invalid_form_response
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -208,9 +209,7 @@ def enter_marks(request, pk):
             _notify_on_status_change(marks, old_status='draft', request=request)
             messages.success(request, 'Assessment marks saved successfully!')
             return redirect('evaluator_history')
-        for field, errors in form.errors.items():
-            for error in errors:
-                messages.error(request, f'{field}: {error}')
+        return invalid_form_response(request, form)
         return redirect('evaluator_pending_assessments')
     form = AssessmentMarksForm(initial={'internship_record': internship, 'assessment_date': timezone.now().date()})
     _prepare_marks_form(form, internship)
@@ -253,9 +252,7 @@ def edit_marks(request, pk):
                 _notify_on_status_change(updated, old_values.get('status'), request)
             messages.success(request, 'Marks updated successfully!')
             return redirect('evaluator_history')
-        for field, errors in form.errors.items():
-            for error in errors:
-                messages.error(request, f'{field}: {error}')
+        return invalid_form_response(request, form)
     form = AssessmentMarksForm(instance=marks)
     _prepare_marks_form(form, marks.internship_record)
     return render(request, 'evaluator/enter_marks.html', {'marks': marks, 'internship': marks.internship_record, 'form': form, 'active_tab': 'evaluator_history'})

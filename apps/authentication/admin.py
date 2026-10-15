@@ -15,6 +15,15 @@ class CustomUserAdmin(UserAdmin):
     list_display = ['username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active']
     list_filter = ['is_staff', 'is_superuser', 'is_active', 'profile__role', 'profile__is_approved']
     search_fields = ['username', 'email', 'first_name', 'last_name']
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if not change:
+            UserProfile.objects.update_or_create(
+                user=obj,
+                defaults={'role': 'admin' if obj.is_superuser else 'unassigned',
+                          'is_active': obj.is_active, 'is_approved': True},
+            )
     
     def get_inline_instances(self, request, obj=None):
         if not obj:

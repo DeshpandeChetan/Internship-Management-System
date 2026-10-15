@@ -2,9 +2,11 @@
 import uuid
 from django.db import models
 from django.contrib.auth.models import User
+from .validators import validate_mobile_number
 
 class UserProfile(models.Model):
     ROLE_CHOICES = (
+        ('unassigned', 'Awaiting Role Assignment'),
         ('admin', 'System Admin'),
         ('faculty_mentor', 'Faculty Mentor'),
         ('evaluator', 'Faculty Evaluator'),
@@ -16,7 +18,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
     department = models.ForeignKey('core.Department', on_delete=models.SET_NULL, null=True, blank=True, related_name='user_profiles')
-    phone_number = models.CharField(max_length=20, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True, validators=[validate_mobile_number])
     is_active = models.BooleanField(default=True)  # User is active
     is_approved = models.BooleanField(default=False)  # Admin approval required for students
     created_on = models.DateTimeField(auto_now_add=True)

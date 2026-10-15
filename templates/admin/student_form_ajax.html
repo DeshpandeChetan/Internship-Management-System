@@ -11,32 +11,3 @@
         </button>
     </div>
 </form>
-
-<script>
-$(document).ready(function() {
-    $('#ajaxForm').on('submit', function(e) {
-        e.preventDefault();
-        const form = $(this);
-        const url = form.attr('action');
-        const data = new FormData(this);
-        
-        $.ajax({
-            url: url,
-            type: 'POST',
-            data: data,
-            processData: false,
-            contentType: false,
-            success: function(response) {
-                if (response.success) {
-                    location.reload();
-                } else {
-                    $('#genericModalBody').html(response.html);
-                }
-            },
-            error: function() {
-                alert('An error occurred. Please try again.');
-            }
-        });
-    });
-});
-</script>

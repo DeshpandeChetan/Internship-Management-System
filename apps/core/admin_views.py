@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from .form_responses import invalid_form_response
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -33,10 +34,19 @@ from .decorators import admin_required
 from .display import user_name_with_role
 
 from apps.authentication.permissions import is_admin, is_dept_admin, is_hod
+from apps.authentication.validators import validate_mobile_number
 from apps.core.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
 from apps.core.report_generator import generate_excel_report, generate_pdf_report
 from apps.core.notifications import send_notification, send_bulk_notification
 from apps.core.audit import log_action
+
+
+def _entity_form_data(request, instance=None):
+    """Status-less admin modals use the model default or retain existing status."""
+    data = request.POST.copy()
+    if 'is_active' not in data:
+        data['is_active'] = 'True' if instance is None or instance.is_active else 'False'
+    return data
 
 
 # ============================================
@@ -193,9 +203,7 @@ def user_add(request):
             except Exception as e:
                 messages.error(request, f'Error creating user: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_users')
     
     return redirect('admin_users')
@@ -224,9 +232,7 @@ def user_edit(request, pk):
             except Exception as e:
                 messages.error(request, f'Error updating user: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_users')
     
     # GET request - render modal content
@@ -321,6 +327,7 @@ def bulk_upload_users(request):
                     if User.objects.filter(email=email).exists():
                         raise ValueError(f"Email {email} already exists")
                     
+                    phone_number = validate_mobile_number(row.get('PHONE', '').strip())
                     password = User.objects.make_random_password()
                     
                     user = User.objects.create_user(
@@ -340,7 +347,7 @@ def bulk_upload_users(request):
                     UserProfile.objects.create(
                         user=user,
                         role=role,
-                        phone_number=row.get('PHONE', '').strip(),
+                        phone_number=phone_number,
                         is_active=True,
                         is_approved=True
                     )
@@ -375,7 +382,7 @@ def pending_users(request):
     pending_users = UserProfile.objects.filter(
         is_approved=False,
         is_active=True
-    ).exclude(role='student').select_related('user', 'department')
+    ).select_related('user', 'department')
     
     context = {
         'active_tab': 'admin_pending_users',
@@ -383,6 +390,35 @@ def pending_users(request):
         'total_pending': pending_users.count(),
     }
     return render(request, 'admin/pending_users.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+@transaction.atomic
+def pending_user_decision(request, user_id):
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+    profile = get_object_or_404(UserProfile.objects.select_for_update(), user_id=user_id, is_approved=False)
+    action = request.POST.get('action')
+    if action == 'student':
+        profile.role = 'student'
+        profile.save(update_fields=['role'])
+        return student_request_approve(request, profile.pk)
+    if action == 'faculty':
+        profile.role = 'unassigned'
+        profile.is_active = True
+        profile.is_approved = True
+        profile.save()
+        profile.user.is_active = True
+        profile.user.save(update_fields=['is_active'])
+        messages.success(request, 'User approved. Assign the appropriate role through Role Management.')
+        return redirect('admin_users')
+    if action == 'reject':
+        profile.is_active = False
+        profile.save(update_fields=['is_active', 'updated_on'])
+        messages.success(request, 'Registration rejected. Account history has been preserved.')
+        return redirect('admin_pending_users')
+    return HttpResponse('Invalid approval action.', status=400)
 
 
 @login_required
@@ -474,6 +510,12 @@ def update_user_role(request, user_id):
     
     if request.method == 'POST':
         role = request.POST.get('role')
+        if role not in dict(UserProfile.ROLE_CHOICES):
+            return HttpResponse('Invalid role.', status=400)
+        if role == 'student' and not hasattr(profile.user, 'student_profile'):
+            Student.objects.create(user=profile.user, email=profile.user.email,
+                                   name=profile.user.get_full_name() or profile.user.email,
+                                   register_number=f'PENDING-{profile.pk}', created_by=request.user)
         profile.role = role
         profile.save()
         messages.success(request, f'Role updated to {profile.get_role_display()}')
@@ -563,9 +605,7 @@ def student_add(request):
             except Exception as e:
                 messages.error(request, f'Error adding student: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_students')
     
     return redirect('admin_students')
@@ -664,9 +704,7 @@ def student_edit(request, pk):
             except Exception as e:
                 messages.error(request, f'Error updating student: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_students')
     
     return redirect('admin_students')
@@ -707,7 +745,7 @@ def student_detail(request, pk):
             {
                 'mentor': assignment.faculty_mentor.user.get_full_name() or assignment.faculty_mentor.user.email,
                 'effective_from': assignment.effective_from.strftime('%d %b %Y'),
-                'effective_to': assignment.effective_to.strftime('%d %b %Y') if assignment.effective_to else 'Current',
+                'effective_to': assignment.effective_to.strftime('%d %b %Y') if assignment.effective_to else 'Until Further Notice',
                 'level': assignment.get_assignment_level_display(),
                 'semester': assignment.related_semester or '-',
                 'active': assignment.is_active,
@@ -784,9 +822,9 @@ def bulk_upload_students(request):
 
         try:
             if filename.endswith('.csv'):
-                df = pd.read_csv(uploaded_file)
+                df = pd.read_csv(uploaded_file, dtype=str, keep_default_na=False)
             else:
-                df = pd.read_excel(uploaded_file)
+                df = pd.read_excel(uploaded_file, dtype=str, keep_default_na=False)
         except Exception as e:
             messages.error(request, f'Error reading file: {str(e)}')
             return redirect('admin_students')
@@ -825,7 +863,7 @@ def bulk_upload_students(request):
                         batch=batch,
                         degree_start_date=pd.to_datetime(row['degree_start_date']).date(),
                         degree_end_date=pd.to_datetime(row['degree_end_date']).date(),
-                        mobile=str(row.get('mobile', '')).strip() if 'mobile' in row else '',
+                        mobile=validate_mobile_number(str(row.get('mobile', '')).strip()),
                         created_by=request.user,
                     )
                     student.save()
@@ -921,7 +959,7 @@ def organisation_list(request):
 def organisation_add(request):
     """Add new organisation"""
     if request.method == 'POST':
-        form = OrganisationForm(request.POST)
+        form = OrganisationForm(_entity_form_data(request))
         if form.is_valid():
             try:
                 organisation = form.save()
@@ -934,9 +972,7 @@ def organisation_add(request):
             except Exception as e:
                 messages.error(request, f'Error adding organisation: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_organisations')
     
     return redirect('admin_organisations')
@@ -950,7 +986,7 @@ def organisation_edit(request, pk):
     old_name = organisation.name
 
     if request.method == 'POST':
-        form = OrganisationForm(request.POST, instance=organisation)
+        form = OrganisationForm(_entity_form_data(request, organisation), instance=organisation)
         if form.is_valid():
             try:
                 form.save()
@@ -963,9 +999,7 @@ def organisation_edit(request, pk):
             except Exception as e:
                 messages.error(request, f'Error updating organisation: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_organisations')
     
     return redirect('admin_organisations')
@@ -1068,9 +1102,7 @@ def department_add(request):
             form.save()
             messages.success(request, 'Department added successfully!')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
     return redirect('admin_departments')
 
 
@@ -1085,9 +1117,7 @@ def department_edit(request, pk):
             form.save()
             messages.success(request, 'Department updated successfully!')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
     return redirect('admin_departments')
 
 
@@ -1108,7 +1138,7 @@ def department_toggle(request, pk):
 def programme_add(request):
     """Add new programme"""
     if request.method == 'POST':
-        form = ProgrammeForm(request.POST)
+        form = ProgrammeForm(_entity_form_data(request))
         if form.is_valid():
             try:
                 programme = form.save()
@@ -1117,9 +1147,7 @@ def programme_add(request):
             except Exception as e:
                 messages.error(request, f'Error adding programme: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_programmes')
     
     return redirect('admin_programmes')
@@ -1132,7 +1160,7 @@ def programme_edit(request, pk):
     programme = get_object_or_404(Programme, pk=pk)
     
     if request.method == 'POST':
-        form = ProgrammeForm(request.POST, instance=programme)
+        form = ProgrammeForm(_entity_form_data(request, programme), instance=programme)
         if form.is_valid():
             try:
                 form.save()
@@ -1141,9 +1169,7 @@ def programme_edit(request, pk):
             except Exception as e:
                 messages.error(request, f'Error updating programme: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_programmes')
     
     return redirect('admin_programmes')
@@ -1210,7 +1236,7 @@ def batch_list(request):
 def batch_add(request):
     """Add new batch"""
     if request.method == 'POST':
-        form = BatchForm(request.POST)
+        form = BatchForm(_entity_form_data(request))
         if form.is_valid():
             try:
                 batch = form.save()
@@ -1219,9 +1245,7 @@ def batch_add(request):
             except Exception as e:
                 messages.error(request, f'Error adding batch: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_batches')
     
     return redirect('admin_batches')
@@ -1234,7 +1258,7 @@ def batch_edit(request, pk):
     batch = get_object_or_404(Batch, pk=pk)
     
     if request.method == 'POST':
-        form = BatchForm(request.POST, instance=batch)
+        form = BatchForm(_entity_form_data(request, batch), instance=batch)
         if form.is_valid():
             try:
                 form.save()
@@ -1243,9 +1267,7 @@ def batch_edit(request, pk):
             except Exception as e:
                 messages.error(request, f'Error updating batch: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_batches')
     
     return redirect('admin_batches')
@@ -1449,9 +1471,7 @@ def break_add(request):
             except Exception as e:
                 messages.error(request, f'Error adding break: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_breaks')
     
     return redirect('admin_breaks')
@@ -1482,9 +1502,7 @@ def break_edit(request, pk):
             except Exception as e:
                 messages.error(request, f'Error updating break: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_breaks')
     
     return redirect('admin_breaks')
@@ -1563,9 +1581,7 @@ def assessment_config(request):
             except Exception as e:
                 messages.error(request, f'Error saving assessment configuration: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_assessment_config')
     
     context = {
@@ -1621,9 +1637,7 @@ def assessment_component_edit(request, pk):
             except Exception as e:
                 messages.error(request, f'Error updating component: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_assessment_config')
 
     return render(request, 'admin/assessment_component_form.html', {
@@ -1678,9 +1692,8 @@ def mentor_assignment_add(request):
         form = MentorAssignmentForm(request.POST)
         if form.is_valid():
             try:
-                assignment = form.save(commit=False)
-                assignment.assigned_by = request.user
-                assignment.save()
+                form.instance.assigned_by = request.user
+                assignment = form.save()
                 log_action(
                     request, 'CREATE', 'MentorAssignment', record_id=assignment.id,
                     new_value=f'{assignment.student.register_number} -> {assignment.faculty_mentor.user.email}'
@@ -1690,9 +1703,7 @@ def mentor_assignment_add(request):
             except Exception as e:
                 messages.error(request, f'Error adding assignment: {str(e)}')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            return invalid_form_response(request, form)
         return redirect('admin_mentor_assignments')
     
     return redirect('admin_mentor_assignments')
@@ -1708,7 +1719,7 @@ def mentor_assignment_detail(request, pk):
         'register_number': assignment.student.register_number,
         'mentor': assignment.faculty_mentor.user.get_full_name() or assignment.faculty_mentor.user.email,
         'effective_from': assignment.effective_from.strftime('%d %b %Y'),
-        'effective_to': assignment.effective_to.strftime('%d %b %Y') if assignment.effective_to else 'Current',
+        'effective_to': assignment.effective_to.strftime('%d %b %Y') if assignment.effective_to else 'Until Further Notice',
         'level': assignment.get_assignment_level_display(),
         'status': 'Active' if assignment.is_active else 'Inactive',
         'reason': assignment.reason_for_change or 'N/A',
@@ -2071,7 +2082,7 @@ def _mentor_report_rows(request=None, department=None):
             'Student': assignment.student.name,
             'Faculty Mentor': mentor_user.get_full_name() or mentor_user.email,
             'Effective From': assignment.effective_from,
-            'Effective To': assignment.effective_to or '',
+            'Effective To': assignment.effective_to or 'Until Further Notice',
             'Semester': assignment.related_semester,
             'Level': assignment.get_assignment_level_display(),
             'Active': 'Yes' if assignment.is_active else 'No',

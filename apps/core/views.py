@@ -6,8 +6,9 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.http import JsonResponse
+from django.db import transaction
 from .models import Student, InternshipRecord, AssessmentMarks, MentorAssignment, ConsolidatedScore, Notification, BreakRecord
-from .forms import validate_mobile_number
+from .forms import validate_mobile_number, StudentAcademicProfileForm
 from apps.core.report_generator import generate_excel_report, generate_pdf_report
 from apps.core.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
 from apps.core.audit import log_action
@@ -22,6 +23,8 @@ def dashboard_redirect(request):
         return redirect('login')
     
     profile = request.user.profile
+    if profile.role == 'unassigned':
+        return redirect('profile')
     
     if not profile.is_approved:
         messages.warning(request, 'Your account is pending admin approval.')
@@ -67,27 +70,38 @@ def profile_view(request):
     return render(request, 'admin/profile.html', {
         'internship_progress': internship_progress,
         'break_history': break_history,
+        'academic_form': StudentAcademicProfileForm(instance=request.user.student_profile) if request.user.profile.role == 'student' and hasattr(request.user, 'student_profile') else None,
         'active_tab': 'profile'
     })
 
 
 @login_required
+@transaction.atomic
 def profile_update(request):
     """Update user profile via modal"""
     if request.method == 'POST':
         user = request.user
+        academic_form = None
+        if user.profile.role == 'student' and hasattr(user, 'student_profile'):
+            academic_form = StudentAcademicProfileForm(request.POST, instance=user.student_profile)
+            if not academic_form.is_valid():
+                return JsonResponse({'success': False, 'errors': academic_form.errors}, status=400)
         first_name = request.POST.get('first_name', '')
         last_name = request.POST.get('last_name', '')
         phone_number = request.POST.get('phone_number')
         try:
             phone_number = validate_mobile_number(phone_number)
         except ValidationError as exc:
-            messages.error(request, exc.messages[0])
-            return redirect('profile')
+            return JsonResponse({'success': False, 'errors': {'phone_number': exc.messages}}, status=400)
         
         user.first_name = first_name
         user.last_name = last_name
         user.save()
+        if academic_form:
+            academic_form.instance.name = user.get_full_name() or user.email
+            academic_form.instance.mobile = phone_number or ''
+            academic_form.save()
+            user.profile.department = academic_form.instance.department
         
         if phone_number is not None and hasattr(request.user, 'profile'):
             profile = request.user.profile
@@ -286,7 +300,7 @@ def _mentor_assignment_report_rows(user):
             'Register No': assignment.student.register_number,
             'Student': assignment.student.name,
             'Effective From': assignment.effective_from,
-            'Effective To': assignment.effective_to or '',
+            'Effective To': assignment.effective_to or 'Until Further Notice',
             'Semester': assignment.related_semester,
             'Level': assignment.get_assignment_level_display(),
             'Active': 'Yes' if assignment.is_active else 'No',

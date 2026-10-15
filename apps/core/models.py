@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 from django.contrib.auth.models import User
 from apps.authentication.models import UserProfile
+from apps.authentication.validators import validate_mobile_number
 
 class Department(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -59,7 +60,7 @@ class Student(models.Model):
     register_number = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=250)
     email = models.EmailField(unique=True)
-    mobile = models.CharField(max_length=20, blank=True)
+    mobile = models.CharField(max_length=20, blank=True, validators=[validate_mobile_number])
     
     # Relationships
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
@@ -150,7 +151,7 @@ class Organisation(models.Model):
     contact_person = models.CharField(max_length=200, blank=True)
     designation = models.CharField(max_length=200, blank=True)
     email = models.EmailField(blank=True)
-    phone = models.CharField(max_length=20, blank=True)
+    phone = models.CharField(max_length=20, blank=True, validators=[validate_mobile_number])
     address = models.TextField(blank=True)
     city = models.CharField(max_length=100, blank=True)
     state = models.CharField(max_length=100, blank=True)
@@ -319,6 +320,12 @@ class MentorAssignment(models.Model):
     class Meta:
         ordering = ['-effective_from']
     
+    @property
+    def is_current(self):
+        from django.utils import timezone
+        today = timezone.localdate()
+        return self.is_active and self.effective_from <= today and (self.effective_to is None or self.effective_to >= today)
+
     def save(self, *args, **kwargs):
         """Auto-deactivate if effective_to date has passed"""
         from django.utils import timezone

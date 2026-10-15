@@ -1,0 +1,118 @@
+<script>
+(function () {
+    function prepare(root) {
+        root.querySelectorAll('form').forEach(function (form) {
+            if (form.method.toLowerCase() === 'post') form.noValidate = true;
+        });
+    }
+
+    function clearErrors(form) {
+        form.querySelectorAll('.ajax-invalid-feedback, .ims-form-errors').forEach(el => el.remove());
+        form.querySelectorAll('.is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+            el.removeAttribute('aria-invalid');
+        });
+        const legacy = form.querySelector('.modal-form-alert');
+        if (legacy) { legacy.textContent = ''; legacy.classList.add('d-none'); }
+    }
+
+    function showErrors(form, errors) {
+        clearErrors(form);
+        let first = null;
+        const summary = document.createElement('div');
+        summary.className = 'ims-form-errors text-danger mb-3';
+        summary.setAttribute('role', 'alert');
+        Object.entries(errors).forEach(function ([name, values]) {
+            const field = Array.from(form.elements).find(el => el.name === name && el.type !== 'hidden' && !el.disabled);
+            const list = Array.isArray(values) ? values : [values];
+            const feedback = document.createElement('div');
+            feedback.textContent = list.map(item => typeof item === 'object' ? item.message : item).join(' ');
+            if (field) {
+                field.classList.add('is-invalid');
+                field.setAttribute('aria-invalid', 'true');
+                feedback.className = 'invalid-feedback d-block ajax-invalid-feedback';
+                field.insertAdjacentElement('afterend', feedback);
+                first = first || field;
+            } else {
+                summary.appendChild(feedback);
+            }
+        });
+        if (summary.childNodes.length) {
+            (form.querySelector('.modal-body') || form).prepend(summary);
+            summary.tabIndex = -1;
+        }
+        const target = first || (summary.childNodes.length ? summary : null);
+        if (target) { target.focus(); target.scrollIntoView({block: 'nearest'}); }
+    }
+
+    function htmlErrors(html) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const errors = {};
+        doc.querySelectorAll('.errorlist, .invalid-feedback, .text-danger.small').forEach(function (node) {
+            if (!node.textContent.trim()) return;
+            const id = (node.id || '').replace(/^id_/, '').replace(/_error$/, '');
+            const field = (id && doc.getElementsByName(id)[0]) ||
+                node.parentElement.querySelector('input:not([type="hidden"]), select, textarea');
+            const name = field && field.name ? field.name : '__all__';
+            (errors[name] || (errors[name] = [])).push(node.textContent.trim());
+        });
+        return errors;
+    }
+
+    document.addEventListener('submit', async function (event) {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || form.method.toLowerCase() !== 'post' ||
+            new URL(form.action, location.href).origin !== location.origin ||
+            form.dataset.imsNative === 'true') return;
+        // Confirmation-only actions retain their existing native submission behavior.
+        if (!form.querySelector('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea')) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (form.dataset.imsSubmitting === 'true') return;
+        clearErrors(form);
+        const clientErrors = {};
+        Array.from(form.elements).forEach(function (field) {
+            if (field.willValidate && !field.checkValidity()) clientErrors[field.name || '__all__'] = [field.validationMessage];
+        });
+        if (Object.keys(clientErrors).length) { showErrors(form, clientErrors); return; }
+        const data = new FormData(form);
+        if (event.submitter && event.submitter.name) data.append(event.submitter.name, event.submitter.value);
+        const buttons = Array.from(form.querySelectorAll('button, input[type="submit"]'));
+        const states = buttons.map(button => button.disabled);
+        form.dataset.imsSubmitting = 'true';
+        buttons.forEach(button => { button.disabled = true; });
+        try {
+            const response = await fetch(form.action || location.href, {
+                method: 'POST', body: data,
+                headers: {'X-Requested-With': 'XMLHttpRequest', 'X-IMS-Form': '1'}
+            });
+            if ((response.headers.get('content-type') || '').includes('application/json')) {
+                const result = await response.json();
+                if (!response.ok || result.success === false || result.errors) {
+                    showErrors(form, result.errors || {'__all__': [result.error || result.message || 'Please correct the form and try again.']});
+                    return;
+                }
+                location.assign(result.redirect_url || (response.redirected ? response.url : location.href));
+            } else {
+                if (response.redirected && response.ok) { location.assign(response.url); return; }
+                const html = await response.text();
+                const errors = htmlErrors(html);
+                if (Object.keys(errors).length) { showErrors(form, errors); return; }
+                if (!response.ok) {
+                    showErrors(form, {'__all__': ['Unable to submit the form. Please check your entries and try again.']});
+                    return;
+                }
+                document.open(); document.write(html); document.close();
+            }
+        } catch (error) {
+            showErrors(form, {'__all__': ['Unable to submit the form. Your entries have been retained. Please try again.']});
+        } finally {
+            delete form.dataset.imsSubmitting;
+            buttons.forEach((button, index) => { button.disabled = states[index]; });
+        }
+    }, true);
+
+    prepare(document);
+    new MutationObserver(function () { prepare(document); }).observe(document.body, {childList: true, subtree: true});
+})();
+</script>

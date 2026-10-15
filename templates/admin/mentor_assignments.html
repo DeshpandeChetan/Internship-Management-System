@@ -73,7 +73,7 @@
                     </td>
                     <td>{{ assignment.faculty_mentor.user.get_full_name|default:assignment.faculty_mentor.user.email }}</td>
                     <td>{{ assignment.effective_from|date:"d M Y" }}</td>
-                    <td>{{ assignment.effective_to|date:"d M Y"|default:"Current" }}</td>
+                    <td>{{ assignment.effective_to|date:"d M Y"|default:"Until Further Notice" }}</td>
                     <td>
                         <span class="badge bg-secondary">{{ assignment.get_assignment_level_display }}</span>
                     </td>
@@ -223,8 +223,8 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Effective To</label>
-                            <input type="date" name="effective_to" id="edit_effective_to" class="form-control">
-                            <small class="text-muted">Leave empty for current/ongoing</small>
+                            <input type="date" name="effective_to" id="edit_effective_to" class="form-control" required>
+                            <label class="form-check mt-2"><input type="checkbox" name="no_end_date" id="edit_no_end_date" class="form-check-input" onchange="toggleEndDate(this)"> No End Date (Until Further Notice)</label>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Assignment Level</label>
@@ -300,7 +300,8 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Effective To</label>
-                            <input type="date" name="effective_to" class="form-control">
+                            <input type="date" name="effective_to" class="form-control" required>
+                            <label class="form-check mt-2"><input type="checkbox" name="no_end_date" class="form-check-input" onchange="toggleEndDate(this)"> No End Date (Until Further Notice)</label>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Assignment Level</label>
@@ -342,6 +343,18 @@
 
 {% block extra_js %}
 <script>
+function toggleEndDate(checkbox) {
+    const field = checkbox.closest('.mb-3').querySelector('input[name="effective_to"]');
+    field.disabled = checkbox.checked;
+    field.required = !checkbox.checked;
+    if (checkbox.checked) field.value = '';
+}
+function toggleEndDate(checkbox) {
+    const field = checkbox.closest('.mb-3').querySelector('input[name="effective_to"]');
+    field.disabled = checkbox.checked;
+    field.required = !checkbox.checked;
+    if (checkbox.checked) field.value = '';
+}
 $(document).ready(function() {
     // Initialize DataTable
     $('#assignmentsTable').DataTable({
@@ -459,6 +472,8 @@ function editAssignment(id) {
             $('#edit_faculty_mentor').val(data.faculty_mentor);
             $('#edit_effective_from').val(data.effective_from);
             $('#edit_effective_to').val(data.effective_to);
+            $('#edit_no_end_date').prop('checked', !data.effective_to);
+            toggleEndDate(document.getElementById('edit_no_end_date'));
             $('#edit_assignment_level').val(data.assignment_level);
             $('#edit_related_semester').val(data.related_semester);
             $('#edit_allow_co_mentor').prop('checked', data.allow_co_mentor);
@@ -483,75 +498,6 @@ function editAssignment(id) {
     });
 }
 
-// Edit Form Submit - Handle AJAX submission
-$(document).on('submit', '#editAssignmentForm', function(e) {
-    e.preventDefault();
-    console.log('Edit form submitted');
-    
-    const id = $('#edit_assignment_id').val();
-    const formData = $(this).serialize();
-    console.log('Form data:', formData);
-    
-    // Show loading state
-    $('#editSubmitBtn').html('<span class="spinner-border spinner-border-sm me-2"></span>Updating...');
-    $('#editSubmitBtn').prop('disabled', true);
-    
-    $.ajax({
-        url: `/dashboard/admin/mentor-assignments/${id}/edit/`,
-        method: 'POST',
-        data: formData,
-        headers: {
-            'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
-        },
-        success: function(response) {
-            console.log('Update response:', response);
-            
-            if (response.success) {
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('editAssignmentModal'));
-                if (modal) {
-                    modal.hide();
-                }
-                // Reload page to show updated data
-                location.reload();
-            } else {
-                // Show errors
-                let errorMsg = 'Error updating assignment:\n';
-                if (response.errors) {
-                    for (const [field, errors] of Object.entries(response.errors)) {
-                        errorMsg += `${field}: ${errors.join(', ')}\n`;
-                    }
-                } else if (response.error) {
-                    errorMsg += response.error;
-                } else {
-                    errorMsg += 'Please check the form and try again.';
-                }
-                alert(errorMsg);
-                
-                // Reset button
-                $('#editSubmitBtn').html('<i class="fas fa-save me-2"></i>Update Assignment');
-                $('#editSubmitBtn').prop('disabled', false);
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error updating assignment:', error);
-            console.error('Response:', xhr.responseText);
-            
-            let errorMsg = 'Error updating assignment. Please try again.';
-            
-            // Check if there's a response with more details
-            if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = xhr.responseJSON.error;
-            }
-            
-            alert(errorMsg);
-            
-            // Reset button
-            $('#editSubmitBtn').html('<i class="fas fa-save me-2"></i>Update Assignment');
-            $('#editSubmitBtn').prop('disabled', false);
-        }
-    });
-});
 
 // Toggle Assignment - Uses Modal instead of confirm popup
 function toggleAssignment(id, currentStatus) {

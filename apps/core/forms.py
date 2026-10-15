@@ -1,7 +1,5 @@
 # apps/core/forms.py
 
-import re
-
 from django import forms
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -12,6 +10,7 @@ from .models import (
     MentorAssignment, AssessmentMarks, AssessmentComponent, AssessmentConfiguration
 )
 from ..authentication.models import UserProfile
+from apps.authentication.validators import validate_mobile_number
 
 
 # ============================================
@@ -32,18 +31,9 @@ def validate_document_file(uploaded_file):
         raise forms.ValidationError("Only PDF, JPG, PNG, DOC, and DOCX files are allowed.")
 
 
-def validate_mobile_number(value):
-    value = (value or '').strip()
-    if not value:
-        return value
-    if not re.fullmatch(r'\d{10}', value):
-        raise forms.ValidationError("Enter a valid 10 digit mobile number.")
-    return value
-
-
 MOBILE_INPUT_ATTRS = {
     'inputmode': 'numeric',
-    'pattern': r'\d{10}',
+    'pattern': r'[0-9]{10}',
     'maxlength': '10',
     'minlength': '10',
     'autocomplete': 'tel',
@@ -64,7 +54,7 @@ class UserForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-control'})
     )
     phone_number = forms.CharField(
-        max_length=20, 
+        max_length=10,
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', **MOBILE_INPUT_ATTRS})
     )
@@ -97,6 +87,7 @@ class UserForm(forms.ModelForm):
         return validate_mobile_number(self.cleaned_data.get('phone_number'))
     
     def save(self, commit=True):
+        creating = self.instance._state.adding
         user = super().save(commit=False)
         user.username = self.cleaned_data['email']
         user.email = self.cleaned_data['email']
@@ -110,7 +101,8 @@ class UserForm(forms.ModelForm):
                     'role': self.cleaned_data['role'],
                     'department': self.cleaned_data.get('department'),
                     'phone_number': self.cleaned_data.get('phone_number', ''),
-                    'is_active': self.cleaned_data.get('is_active', True)
+                    'is_active': self.cleaned_data.get('is_active', True),
+                    'is_approved': True,
                 }
             )
             if not created:
@@ -118,6 +110,8 @@ class UserForm(forms.ModelForm):
                 profile.department = self.cleaned_data.get('department')
                 profile.phone_number = self.cleaned_data.get('phone_number', '')
                 profile.is_active = self.cleaned_data.get('is_active', True)
+                if creating:
+                    profile.is_approved = True
                 profile.save()
         return user
 
@@ -132,6 +126,8 @@ class UserForm(forms.ModelForm):
 
 class StudentForm(forms.ModelForm):
     """Form for creating/editing students - No password needed for Google Login"""
+    mobile = forms.CharField(max_length=10, required=False, validators=[validate_mobile_number],
+                             widget=forms.TextInput(attrs={'class': 'form-control', **MOBILE_INPUT_ATTRS}))
     
     class Meta:
         model = Student
@@ -228,6 +224,8 @@ class StudentForm(forms.ModelForm):
 
 class OrganisationForm(forms.ModelForm):
     """Form for creating/editing organisations"""
+    phone = forms.CharField(max_length=10, required=False, validators=[validate_mobile_number],
+                            widget=forms.TextInput(attrs={'class': 'form-control', **MOBILE_INPUT_ATTRS}))
     class Meta:
         model = Organisation
         fields = [
@@ -242,7 +240,7 @@ class OrganisationForm(forms.ModelForm):
             'contact_person': forms.TextInput(attrs={'class': 'form-control'}),
             'designation': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', **MOBILE_INPUT_ATTRS}),
             'address': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
             'city': forms.TextInput(attrs={'class': 'form-control'}),
             'state': forms.TextInput(attrs={'class': 'form-control'}),
@@ -266,7 +264,7 @@ class OrganisationForm(forms.ModelForm):
         return email
 
     def clean_phone(self):
-        phone = self.cleaned_data.get('phone')
+        phone = validate_mobile_number(self.cleaned_data.get('phone'))
         if phone and Organisation.objects.filter(phone__iexact=phone).exclude(pk=self.instance.pk).exists():
             raise forms.ValidationError("An organisation with this phone number already exists.")
         return phone
@@ -296,6 +294,34 @@ class OrganisationForm(forms.ModelForm):
 # ============================================
 # INTERNSHIP MANAGEMENT FORMS
 # ============================================
+
+class StudentAcademicProfileForm(forms.ModelForm):
+    class Meta:
+        model = Student
+        fields = ['department', 'programme', 'batch', 'degree_start_date', 'degree_end_date']
+        widgets = {
+            'department': forms.Select(attrs={'class': 'form-select'}),
+            'programme': forms.Select(attrs={'class': 'form-select'}),
+            'batch': forms.Select(attrs={'class': 'form-select'}),
+            'degree_start_date': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date', 'class': 'form-control'}),
+            'degree_end_date': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date', 'class': 'form-control'}),
+        }
+
+    def clean(self):
+        data = super().clean()
+        start, end = data.get('degree_start_date'), data.get('degree_end_date')
+        if start and end and end <= start:
+            self.add_error('degree_end_date', 'Degree end date must be after the start date.')
+        batch, programme = data.get('batch'), data.get('programme')
+        if batch and batch.programme_id != getattr(programme, 'pk', None):
+            self.add_error('batch', 'Select a batch belonging to the selected programme.')
+        if self.instance.pk:
+            for record in list(self.instance.internships.all()) + list(self.instance.breaks.all()):
+                if (start and record.start_date < start) or (end and record.end_date > end):
+                    self.add_error(None, 'The degree period must include existing internship and break dates.')
+                    break
+        return data
+
 
 class InternshipForm(forms.ModelForm):
     """Form for creating/editing internships"""
@@ -333,6 +359,13 @@ class InternshipForm(forms.ModelForm):
         self.student = kwargs.pop('student', None)
         super().__init__(*args, **kwargs)
         self.fields['organisation'].queryset = Organisation.objects.filter(is_active=True)
+        student = self.student or getattr(self.instance, 'student', None)
+        if student:
+            for name in ('start_date', 'end_date'):
+                if student.degree_start_date:
+                    self.fields[name].widget.attrs['min'] = student.degree_start_date.isoformat()
+                if student.degree_end_date:
+                    self.fields[name].widget.attrs['max'] = student.degree_end_date.isoformat()
     
     def clean(self):
         cleaned_data = super().clean()
@@ -354,11 +387,11 @@ class InternshipForm(forms.ModelForm):
         if date_override_approved and not date_override_reason:
             self.add_error('date_override_reason', "Please mention the approved override reason.")
 
-        if student and start_date and end_date and not date_override_approved:
-            if student.degree_start_date and start_date < student.degree_start_date:
-                self.add_error('start_date', "Internship start date must fall within the student's degree period unless override is approved.")
-            if student.degree_end_date and end_date > student.degree_end_date:
-                self.add_error('end_date', "Internship end date must fall within the student's degree period unless override is approved.")
+        if student and not date_override_approved:
+            for field_name, value in (('start_date', start_date), ('end_date', end_date)):
+                if value and ((student.degree_start_date and value < student.degree_start_date) or
+                              (student.degree_end_date and value > student.degree_end_date)):
+                    self.add_error(field_name, "Internship dates must fall within the student's configured academic period.")
 
         if student and internship_type == 'regular':
             try:
@@ -458,6 +491,7 @@ class BreakForm(forms.ModelForm):
 
 class MentorAssignmentForm(forms.ModelForm):
     """Form for creating/editing mentor assignments"""
+    no_end_date = forms.BooleanField(required=False, label='No End Date (Until Further Notice)')
     class Meta:
         model = MentorAssignment
         fields = [
@@ -483,15 +517,37 @@ class MentorAssignmentForm(forms.ModelForm):
         self.fields['faculty_mentor'].queryset = UserProfile.objects.filter(
             role__in=['faculty_mentor', 'hod']
         )
+        if not self.instance._state.adding:
+            self.fields['no_end_date'].initial = self.instance.effective_to is None
 
     def clean(self):
         cleaned_data = super().clean()
         student = cleaned_data.get('student')
         effective_from = cleaned_data.get('effective_from')
         effective_to = cleaned_data.get('effective_to')
+        if cleaned_data.get('no_end_date'):
+            effective_to = cleaned_data['effective_to'] = None
+            self._errors.pop('effective_to', None)
+        elif not effective_to:
+            self.add_error('effective_to', 'Enter an end date or select No End Date (Until Further Notice).')
         assignment_level = cleaned_data.get('assignment_level')
         allow_co_mentor = cleaned_data.get('allow_co_mentor')
         internship_record = cleaned_data.get('internship_record')
+
+        mentor = cleaned_data.get('faculty_mentor')
+        if student and mentor and effective_from and assignment_level:
+            duplicates = MentorAssignment.objects.filter(
+                student=student, faculty_mentor=mentor, effective_from=effective_from,
+                effective_to=effective_to, assignment_level=assignment_level,
+            ).exclude(pk=self.instance.pk)
+            if duplicates.exists():
+                self.add_error(None, 'This mentor assignment already exists for the same student, mentor, dates, and level.')
+
+        if assignment_level == 'internship':
+            if not internship_record:
+                self.add_error('internship_record', 'Select an internship for an internship-specific assignment.')
+            elif student and internship_record.student_id != student.pk:
+                self.add_error('internship_record', 'The internship must belong to the selected student.')
 
         if effective_from and effective_to and effective_to < effective_from:
             self.add_error('effective_to', "Effective to date cannot be before effective from date.")
@@ -519,14 +575,64 @@ class MentorAssignmentForm(forms.ModelForm):
                     Q(effective_to__isnull=True) | Q(effective_to__gte=effective_from)
                 )
 
-            if active_overlap.exists():
+            if active_overlap.filter(effective_from__gte=effective_from).exists():
                 self.add_error(
-                    'student',
-                    "This student already has an active mentor assignment at this level for the selected period. "
-                    "Enable co-mentoring to allow an additional mentor to overlap."
+                    'effective_from',
+                    'Reassignment must start after the existing assignment start date. Enable co-mentoring for simultaneous mentors.'
                 )
 
+        if not self.instance._state.adding:
+            original = MentorAssignment.objects.get(pk=self.instance.pk)
+            if original.faculty_mentor_id != getattr(cleaned_data.get('faculty_mentor'), 'pk', None):
+                if student != original.student or assignment_level != original.assignment_level or internship_record != original.internship_record:
+                    self.add_error('student', 'Keep the same student and scope when reassigning a mentor.')
+                if effective_from and effective_from <= original.effective_from:
+                    self.add_error('effective_from', 'Reassignment must start after the previous assignment start date.')
+
         return cleaned_data
+
+    @transaction.atomic
+    def save(self, commit=True):
+        if not commit:
+            raise ValueError('Mentor assignments must be saved atomically with commit=True.')
+        from datetime import timedelta
+        assignment = super().save(commit=False)
+        # Serialize assignments for one student, including concurrent first assignments.
+        Student.objects.select_for_update().get(pk=assignment.student_id)
+        if MentorAssignment.objects.filter(
+            student=assignment.student, faculty_mentor=assignment.faculty_mentor,
+            effective_from=assignment.effective_from, effective_to=assignment.effective_to,
+            assignment_level=assignment.assignment_level,
+        ).exclude(pk=assignment.pk).exists():
+            raise forms.ValidationError('This mentor assignment already exists for the same student, mentor, dates, and level.')
+        if assignment.pk:
+            original = MentorAssignment.objects.select_for_update().filter(pk=assignment.pk).first()
+            if original and original.faculty_mentor_id != assignment.faculty_mentor_id:
+                original.effective_to = assignment.effective_from - timedelta(days=1)
+                original.save()
+                assignment.pk = None
+                assignment._state.adding = True
+                assignment.is_active = True
+
+        if not assignment.allow_co_mentor:
+            overlapping = MentorAssignment.objects.select_for_update().filter(
+                student=assignment.student, assignment_level=assignment.assignment_level,
+                is_active=True, allow_co_mentor=False,
+            ).exclude(pk=assignment.pk).filter(
+                Q(effective_to__isnull=True) | Q(effective_to__gte=assignment.effective_from)
+            )
+            if assignment.assignment_level == 'internship':
+                overlapping = overlapping.filter(internship_record=assignment.internship_record)
+            if assignment.effective_to:
+                overlapping = overlapping.filter(effective_from__lte=assignment.effective_to)
+            for previous in overlapping:
+                if previous.effective_from >= assignment.effective_from:
+                    raise forms.ValidationError('A conflicting assignment already starts on or after this date.')
+                previous.effective_to = assignment.effective_from - timedelta(days=1)
+                previous.save()
+        assignment.save()
+        self.save_m2m()
+        return assignment
 
 
 # ============================================
@@ -638,6 +744,8 @@ class AssessmentConfigurationForm(forms.ModelForm):
 # ============================================
 
 class ProfileForm(forms.ModelForm):
+    phone_number = forms.CharField(max_length=10, required=False, validators=[validate_mobile_number],
+                                   widget=forms.TextInput(attrs={'class': 'form-control', **MOBILE_INPUT_ATTRS}))
     """Form for editing user profile"""
     first_name = forms.CharField(
         max_length=30, 

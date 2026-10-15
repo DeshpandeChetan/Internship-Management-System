@@ -88,6 +88,8 @@
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div class="d-flex gap-2 flex-wrap">
+                <a class="btn btn-outline-primary" href="{% url 'admin_pending_users' %}"><i class="fas fa-user-clock me-1"></i>Pending Users</a>
+                <a class="btn btn-outline-primary" href="{% url 'admin_manage_users' %}"><i class="fas fa-user-tag me-1"></i>Role Management</a>
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal" data-bs-backdrop="static" data-bs-keyboard="false">
                     <i class="fas fa-plus me-2"></i>Add User
                 </button>

@@ -114,11 +114,17 @@
                                             <i class="fas fa-eye text-info me-2"></i> View Details
                                         </button>
                                     </li>
-                                    {% if internship.verification_status == 'draft' or internship.verification_status == 'needs_correction' or internship.verification_status == 'rejected' %}
+                                    {% if internship.created_by_id == user.id %}
                                     <li>
                                         <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editInternshipModal{{ internship.id }}">
                                             <i class="fas fa-edit text-primary me-2"></i> Edit
                                         </button>
+                                    </li>
+                                    <li>
+                                        <form method="post" action="{% url 'student_internship_delete' internship.id %}" onsubmit="return confirm('Delete this internship? This cannot be undone.');">
+                                            {% csrf_token %}
+                                            <button class="dropdown-item text-danger" type="submit"><i class="fas fa-trash me-2"></i>Delete</button>
+                                        </form>
                                     </li>
                                     {% endif %}
                                     <li>
@@ -176,11 +182,11 @@
                                             </div>
                                             <div class="col-md-6 mb-3">
                                                 <label class="form-label">Start Date *</label>
-                                                <input type="date" name="start_date" value="{{ internship.start_date|date:'Y-m-d' }}" class="form-control" required>
+                                                <input type="date" name="start_date" value="{{ internship.start_date|date:'Y-m-d' }}" min="{{ student.degree_start_date|date:'Y-m-d' }}" max="{{ student.degree_end_date|date:'Y-m-d' }}" class="form-control" required>
                                             </div>
                                             <div class="col-md-6 mb-3">
                                                 <label class="form-label">End Date *</label>
-                                                <input type="date" name="end_date" value="{{ internship.end_date|date:'Y-m-d' }}" class="form-control" required>
+                                                <input type="date" name="end_date" value="{{ internship.end_date|date:'Y-m-d' }}" min="{{ student.degree_start_date|date:'Y-m-d' }}" max="{{ student.degree_end_date|date:'Y-m-d' }}" class="form-control" required>
                                             </div>
                                             <div class="col-md-6 mb-3">
                                                 <label class="form-label">Mode *</label>
@@ -326,11 +332,11 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Start Date *</label>
-                            <input type="date" name="start_date" class="form-control" required>
+                            <input type="date" name="start_date" min="{{ student.degree_start_date|date:'Y-m-d' }}" max="{{ student.degree_end_date|date:'Y-m-d' }}" class="form-control" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">End Date *</label>
-                            <input type="date" name="end_date" class="form-control" required>
+                            <input type="date" name="end_date" min="{{ student.degree_start_date|date:'Y-m-d' }}" max="{{ student.degree_end_date|date:'Y-m-d' }}" class="form-control" required>
                         </div>
                         
                         <div class="col-md-6 mb-3">

@@ -37,6 +37,12 @@
                         <p><strong>Role:</strong> {{ user.profile.get_role_display }}</p>
                         <p><strong>Phone:</strong> {{ user.profile.phone_number|default:"-" }}</p>
                         <p><strong>Joined:</strong> {{ user.date_joined|date:"d M Y" }}</p>
+                        {% if academic_form %}
+                        <p><strong>Department:</strong> {{ user.student_profile.department|default:"-" }}</p>
+                        <p><strong>Programme:</strong> {{ user.student_profile.programme|default:"-" }}</p>
+                        <p><strong>Batch:</strong> {{ user.student_profile.batch|default:"-" }}</p>
+                        <p><strong>Degree Period:</strong> {{ user.student_profile.degree_start_date|date:"d M Y"|default:"-" }} to {{ user.student_profile.degree_end_date|date:"d M Y"|default:"-" }}</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -106,9 +112,10 @@
                 <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Profile</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post" action="{% url 'profile_update' %}">
+            <form method="post" action="{% url 'profile_update' %}" data-modal-ajax="true" novalidate>
                 {% csrf_token %}
                 <div class="modal-body">
+                    <div class="modal-form-alert d-none"></div>
                     <div class="mb-3">
                         <label class="form-label">Email</label>
                         <input type="email" class="form-control" value="{{ user.email }}" readonly>
@@ -130,6 +137,13 @@
                         <label class="form-label">Phone</label>
                         <input type="text" name="phone_number" class="form-control" value="{{ user.profile.phone_number }}">
                     </div>
+                    {% if academic_form %}
+                    <div class="row">
+                        {% for field in academic_form %}
+                        <div class="col-md-6 mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

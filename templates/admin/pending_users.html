@@ -29,13 +29,12 @@
                         <td>{{ profile.user.get_full_name|default:'-' }}</td>
                         <td>{{ profile.user.date_joined|date:"d M Y H:i" }}</td>
                         <td>
-                            <a href="{% url 'admin_approve_user' profile.user.id %}" class="btn btn-sm btn-success">
-                                <i class="fas fa-check me-1"></i>Approve
-                            </a>
-                            <a href="{% url 'admin_reject_user' profile.user.id %}" class="btn btn-sm btn-danger" 
-                               onclick="return confirm('Are you sure you want to reject this user?')">
-                                <i class="fas fa-times me-1"></i>Reject
-                            </a>
+                            <form method="post" action="{% url 'admin_pending_user_decision' profile.user.id %}" class="d-flex flex-wrap gap-2">
+                                {% csrf_token %}
+                                <button name="action" value="student" class="btn btn-sm btn-success"><i class="fas fa-user-graduate me-1"></i>Approve as Student</button>
+                                <button name="action" value="faculty" class="btn btn-sm btn-primary"><i class="fas fa-user-check me-1"></i>Approve as User/Faculty</button>
+                                <button name="action" value="reject" class="btn btn-sm btn-danger" onclick="return confirm('Reject this registration?')"><i class="fas fa-times me-1"></i>Reject</button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}

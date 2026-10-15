@@ -5,7 +5,7 @@
 {% block content %}
 <div class="card">
     <div class="card-header">
-        <h5 class="mb-0">My Mentor</h5>
+        <h5 class="mb-0">Current Mentor</h5>
     </div>
     <div class="card-body">
         {% if assignment %}
@@ -18,7 +18,7 @@
             <div class="col-md-6">
                 <p><strong>Assignment Level:</strong> {{ assignment.get_assignment_level_display }}</p>
                 <p><strong>Effective From:</strong> {{ assignment.effective_from|date:"d M Y" }}</p>
-                <p><strong>Effective To:</strong> {{ assignment.effective_to|date:"d M Y"|default:"Current" }}</p>
+                <p><strong>Effective To:</strong> {{ assignment.effective_to|date:"d M Y"|default:"Until Further Notice" }}</p>
                 <p><strong>Status:</strong> {% if assignment.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-danger">Inactive</span>{% endif %}</p>
             </div>
             {% if assignment.related_semester or assignment.reason_for_change or assignment.remarks %}
@@ -60,10 +60,10 @@
                     <tr>
                         <td>{{ item.faculty_mentor.user.get_full_name|default:item.faculty_mentor.user.email }}</td>
                         <td>{{ item.effective_from|date:"d M Y" }}</td>
-                        <td>{{ item.effective_to|date:"d M Y"|default:"Current" }}</td>
+                        <td>{{ item.effective_to|date:"d M Y"|default:"Until Further Notice" }}</td>
                         <td>{{ item.get_assignment_level_display }}</td>
                         <td>{{ item.related_semester|default:"-" }}</td>
-                        <td>{% if item.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Past</span>{% endif %}</td>
+                        <td>{% if item.is_current %}<span class="badge bg-success">Current Mentor</span>{% elif item.is_active and item.effective_from > today %}<span class="badge bg-info">Upcoming Mentor</span>{% else %}<span class="badge bg-secondary">Previous Mentor</span>{% endif %}</td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="6" class="text-center">No mentor history found.</td></tr>

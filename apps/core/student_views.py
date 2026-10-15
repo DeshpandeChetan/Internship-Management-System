@@ -1,10 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from .form_responses import invalid_form_response
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
+from django.db import transaction
 from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks, Organisation, BreakRecord
 from .decorators import student_required
 from .forms import InternshipForm, BreakForm
@@ -192,9 +194,7 @@ def internship_add(request):
             _notify_mentor_of_submission(student, internship)
             messages.success(request, 'Internship record submitted for faculty verification!')
             return redirect('my_internships')
-        for field, errors in form.errors.items():
-            for error in errors:
-                messages.error(request, f'{field}: {error}')
+        return invalid_form_response(request, form)
     return redirect('my_internships')
 
 @student_required
@@ -249,19 +249,33 @@ def internship_edit(request, pk):
         InternshipRecord,
         pk=pk,
         student=student,
-        verification_status__in=['draft', 'needs_correction', 'rejected']
+        created_by=request.user,
     )
+    if internship.assessment_marks.filter(status__in=['approved', 'locked']).exists() or student.consolidated_scores.filter(is_finalized=True).exists():
+        messages.error(request, 'Finalized assessments must be reopened by staff before editing this internship.')
+        return redirect('my_internships')
     old_status = internship.verification_status
     if request.method == 'POST':
         form = student_internship_form(request.POST, request.FILES, instance=internship, student=student)
         if form.is_valid():
             internship = form.save(commit=False)
             internship.verification_status = 'submitted'
+            internship.completion_status = 'pending'
             internship.verified_by = None
             internship.verified_at = None
             internship.updated_by = request.user
-            internship.submission_date = internship.submission_date or timezone.now().date()
-            internship.save()
+            internship.submission_date = timezone.localdate()
+            with transaction.atomic():
+                from .models import AssessmentMarksHistory
+                for mark in internship.assessment_marks.all():
+                    AssessmentMarksHistory.objects.create(
+                        assessment_marks=mark, edited_by=request.user,
+                        old_values={'status': mark.status}, new_values={'status': 'draft'},
+                        remarks='Student edited internship; verification and assessment workflow restarted.',
+                    )
+                    mark.status = 'draft'
+                    mark.save(update_fields=['status', 'updated_on'])
+                internship.save()
             log_action(
                 request, 'UPDATE', 'InternshipRecord', record_id=internship.id,
                 old_value=old_status, new_value=internship.verification_status
@@ -269,15 +283,26 @@ def internship_edit(request, pk):
             _notify_mentor_of_submission(student, internship)
             messages.success(request, 'Internship updated and submitted for faculty verification!')
             return redirect('my_internships')
-        for field, errors in form.errors.items():
-            for error in errors:
-                messages.error(request, f'{field}: {error}')
+        return invalid_form_response(request, form)
     return redirect('my_internships')
 
 @student_required
 def internship_delete(request, pk):
     """Delete internship"""
-    messages.error(request, 'Students are not allowed to delete internship records.')
+    if request.method != 'POST':
+        from django.http import HttpResponseNotAllowed
+        return HttpResponseNotAllowed(['POST'])
+    student = require_logged_in_student(request)
+    if not student:
+        return redirect('profile')
+    internship = get_object_or_404(InternshipRecord, pk=pk, student=student, created_by=request.user)
+    if internship.assessment_marks.exists() or internship.mentor_assignments.exists() or student.consolidated_scores.filter(is_finalized=True).exists():
+        messages.error(request, 'This internship has assessment or assignment history and cannot be deleted. Contact staff.')
+        return redirect('my_internships')
+    log_action(request, 'DELETE', 'InternshipRecord', record_id=internship.pk,
+               old_value=f'{internship.internship_type} {internship.internship_number}: {internship.start_date} - {internship.end_date}')
+    internship.delete()
+    messages.success(request, 'Internship deleted successfully.')
     return redirect('my_internships')
 
 
@@ -307,14 +332,14 @@ def my_mentor(request):
         return redirect('profile')
 
     assignment = MentorAssignment.objects.filter(
-        student=student, 
-        is_active=True
-    ).first()
+        student=student, is_active=True, effective_from__lte=timezone.localdate(),
+    ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=timezone.localdate())).first()
     mentor_history = MentorAssignment.objects.filter(student=student).select_related('faculty_mentor__user').order_by('-effective_from')
     return render(request, 'student/mentor.html', {
         'student': student,
         'assignment': assignment,
         'mentor_history': mentor_history,
+        'today': timezone.localdate(),
         'active_tab': 'my_mentor'
     })
 
@@ -464,9 +489,7 @@ def break_edit(request, pk):
                 'success': False,
                 'errors': form_errors_payload(form),
             }, status=400)
-        for field, errors in form.errors.items():
-            for error in errors:
-                messages.error(request, f'{field}: {error}')
+        return invalid_form_response(request, form)
     return redirect('student_breaks')
 
 

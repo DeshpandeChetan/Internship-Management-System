@@ -28,6 +28,10 @@ urlpatterns = [
        
     # User Management
     path('admin/users/', admin_views.user_list, name='admin_users'),
+    path('admin/users/pending/', admin_views.pending_users, name='admin_pending_users'),
+    path('admin/users/pending/<int:user_id>/', admin_views.pending_user_decision, name='admin_pending_user_decision'),
+    path('admin/users/roles/', admin_views.manage_user_roles, name='admin_manage_users'),
+    path('admin/users/roles/<int:user_id>/', admin_views.update_user_role, name='admin_update_user_role'),
     path('admin/users/add/', admin_views.user_add, name='admin_user_add'),
     path('admin/users/<uuid:pk>/edit/', admin_views.user_edit, name='admin_user_edit'),
     path('admin/users/<uuid:pk>/delete/', admin_views.user_delete, name='admin_user_delete'),

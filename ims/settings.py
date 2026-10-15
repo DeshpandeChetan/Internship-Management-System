@@ -39,6 +39,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'allauth.account.middleware.AccountMiddleware',  # Keep this
     'django.contrib.messages.middleware.MessageMiddleware',
+    'apps.core.middleware.FormSubmissionMiddleware',
     'apps.authentication.middleware.UserApprovalMiddleware',  # Keep this
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

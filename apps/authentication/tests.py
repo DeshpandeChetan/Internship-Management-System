@@ -10,6 +10,52 @@ from apps.authentication.adapter import CustomSocialAccountAdapter
 from apps.authentication.models import UserProfile
 
 
+class AccountAuthorizationTests(TestCase):
+    def test_login_status_messages_and_session(self):
+        from allauth.account.internal.flows.login import perform_login
+        from allauth.account.models import Login
+        from allauth.core.context import request_context
+        from django.contrib.auth import SESSION_KEY
+        from django.contrib.auth.models import AnonymousUser
+        from django.contrib.messages import get_messages
+        from django.contrib.messages.middleware import MessageMiddleware
+        from django.contrib.sessions.middleware import SessionMiddleware
+        from django.urls import reverse
+
+        cases = [
+            ('student', True, False, True, 'pending admin approval', False),
+            ('student', False, True, True, 'deactivated', False),
+            ('faculty_mentor', False, True, True, 'deactivated', False),
+            ('student', True, True, False, 'deactivated', False),
+            ('student', True, True, True, None, True),
+            ('faculty_mentor', True, False, True, None, True),
+        ]
+        for index, (role, active, approved, user_active, status, allowed) in enumerate(cases):
+            with self.subTest(role=role, active=active, approved=approved, user_active=user_active):
+                user = User.objects.create_user(
+                    username=f'login-test-{index}', email=f'login-{index}@example.com',
+                    is_active=user_active,
+                )
+                UserProfile.objects.create(user=user, role=role, is_active=active, is_approved=approved)
+                request = RequestFactory().get('/accounts/google/login/callback/')
+                SessionMiddleware(lambda r: None).process_request(request)
+                MessageMiddleware(lambda r: None).process_request(request)
+                request.user = AnonymousUser()
+                with request_context(request):
+                    response = perform_login(request, Login(user=user, email_verification='none'))
+                queued = list(get_messages(request))
+                self.assertEqual(SESSION_KEY in request.session, allowed)
+                self.assertEqual(request.user.is_authenticated, allowed)
+                self.assertEqual(len(queued), 1)
+                if allowed:
+                    self.assertEqual(queued[0].level, 25)
+                    self.assertEqual(response.url, '/dashboard/')
+                else:
+                    self.assertIn(status, str(queued[0]))
+                    self.assertNotEqual(queued[0].level, 25)
+                    self.assertEqual(response.url, reverse('login'))
+
+
 class CustomSocialAccountAdapterTests(TestCase):
     def setUp(self):
         self.adapter = CustomSocialAccountAdapter()

@@ -25,17 +25,8 @@ urlpatterns = [
     # ============================================
     path('admin/dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
     path('admin/audit-logs/', admin_views.audit_logs, name='admin_audit_logs'),
-    
+       
     # User Management
-    # path('admin/users/', admin_views.user_list, name='admin_users'),
-    # path('admin/users/add/', admin_views.user_add, name='admin_user_add'),
-    # path('admin/users/<uuid:pk>/edit/', admin_views.user_edit, name='admin_user_edit'),
-    # path('admin/users/<uuid:pk>/delete/', admin_views.user_delete, name='admin_user_delete'),
-    # path('admin/users/<uuid:pk>/toggle/', admin_views.user_toggle, name='admin_user_toggle'),
-    # path('admin/users/<uuid:pk>/approve/', admin_views.user_approve, name='admin_user_approve'),
-    # path('admin/users/bulk-upload/', admin_views.bulk_upload_users, name='bulk_upload_users'),
-    
-    # User Management (already exists, verify)
     path('admin/users/', admin_views.user_list, name='admin_users'),
     path('admin/users/add/', admin_views.user_add, name='admin_user_add'),
     path('admin/users/<uuid:pk>/edit/', admin_views.user_edit, name='admin_user_edit'),

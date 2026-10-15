@@ -1,4 +1,4 @@
-# apps/utils/notifications.py
+# apps/core/notifications.py
 
 import logging
 logger = logging.getLogger(__name__)

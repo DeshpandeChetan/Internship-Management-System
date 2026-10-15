@@ -1,4 +1,4 @@
-# apps/utils/audit.py
+# apps/core/audit.py
 
 import logging
 

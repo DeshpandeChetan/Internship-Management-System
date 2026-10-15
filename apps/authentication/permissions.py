@@ -1,4 +1,4 @@
-# apps/utils/permissions.py
+# apps/authentication/permissions.py
 
 from functools import wraps
 from django.shortcuts import redirect

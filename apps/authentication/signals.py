@@ -4,7 +4,7 @@ from django.dispatch import receiver
 from django.contrib.auth.models import User
 from allauth.socialaccount.models import SocialAccount
 from .models import UserProfile
-from apps.utils.audit import log_action
+from apps.core.audit import log_action
 
 @receiver(post_save, sender=SocialAccount)
 def create_user_profile_from_social_login(sender, instance, created, **kwargs):

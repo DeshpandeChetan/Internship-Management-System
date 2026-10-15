@@ -7,9 +7,9 @@ from django.db.models import Count
 from .models import Student, InternshipRecord, MentorAssignment, AssessmentMarks
 from .decorators import mentor_required
 from .display import user_name_with_role
-from apps.utils.audit import log_action
-from apps.utils.notifications import send_notification, send_bulk_notification
-from apps.utils.calculations import calculate_student_internship_progress
+from apps.core.audit import log_action
+from apps.core.notifications import send_notification, send_bulk_notification
+from apps.core.calculations import calculate_student_internship_progress
 
 
 def get_assigned_student_ids(request):

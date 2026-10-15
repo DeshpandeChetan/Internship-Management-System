@@ -32,12 +32,11 @@ from .forms import (
 from .decorators import admin_required
 from .display import user_name_with_role
 
-# Import utilities from apps/utils
-from apps.utils.permissions import is_admin, is_dept_admin, is_hod
-from apps.utils.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
-from apps.utils.report_generator import generate_excel_report, generate_pdf_report
-from apps.utils.notifications import send_notification, send_bulk_notification
-from apps.utils.audit import log_action
+from apps.authentication.permissions import is_admin, is_dept_admin, is_hod
+from apps.core.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
+from apps.core.report_generator import generate_excel_report, generate_pdf_report
+from apps.core.notifications import send_notification, send_bulk_notification
+from apps.core.audit import log_action
 
 
 # ============================================

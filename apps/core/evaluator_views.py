@@ -11,9 +11,9 @@ from django.db.models import Avg, Count
 from .models import InternshipRecord, AssessmentMarks, AssessmentComponent, AssessmentMarksHistory, MentorAssignment
 from .forms import AssessmentMarksForm
 from .decorators import evaluator_required
-from apps.utils.audit import log_action
-from apps.utils.calculations import calculate_student_internship_progress
-from apps.utils.notifications import send_notification, send_bulk_notification
+from apps.core.audit import log_action
+from apps.core.calculations import calculate_student_internship_progress
+from apps.core.notifications import send_notification, send_bulk_notification
 
 
 def _notify_on_status_change(marks, old_status, request):

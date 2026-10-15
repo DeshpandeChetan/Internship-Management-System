@@ -1,13 +1,11 @@
 # apps/core/decorators.py
 
-from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import redirect
 from django.contrib import messages
 from functools import wraps
 
-# Import from utils.permissions
-from apps.utils.permissions import (
-    is_admin, is_hod, is_dept_admin, 
+from apps.authentication.permissions import (
+    is_admin, is_hod, is_dept_admin, role_required,
     is_faculty_mentor, is_faculty_evaluator, is_student
 )
 
@@ -88,18 +86,3 @@ def student_required(view_func):
         messages.error(request, 'Student access required.')
         return redirect('dashboard')
     return wrapper
-
-
-def role_required(allowed_roles=[]):
-    """Decorator to check if user has required role"""
-    def decorator(view_func):
-        @wraps(view_func)
-        def wrapper(request, *args, **kwargs):
-            if not request.user.is_authenticated:
-                return redirect('login')
-            if hasattr(request.user, 'profile') and request.user.profile.role in allowed_roles:
-                return view_func(request, *args, **kwargs)
-            messages.error(request, 'You do not have permission to access this page.')
-            return redirect('dashboard')
-        return wrapper
-    return decorator

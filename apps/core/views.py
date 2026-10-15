@@ -8,9 +8,9 @@ from django.http import HttpResponse
 from django.http import JsonResponse
 from .models import Student, InternshipRecord, AssessmentMarks, MentorAssignment, ConsolidatedScore, Notification, BreakRecord
 from .forms import validate_mobile_number
-from apps.utils.report_generator import generate_excel_report, generate_pdf_report
-from apps.utils.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
-from apps.utils.audit import log_action
+from apps.core.report_generator import generate_excel_report, generate_pdf_report
+from apps.core.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
+from apps.core.audit import log_action
 
 
 @login_required

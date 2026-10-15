@@ -4,8 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from .models import Student, InternshipRecord, ConsolidatedScore, AssessmentMarks
 from .decorators import hod_required
-from apps.utils.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
-from apps.utils.audit import log_action
+from apps.core.calculations import calculate_student_consolidated_marks, calculate_student_internship_progress
+from apps.core.audit import log_action
 
 @hod_required
 def hod_dashboard(request):

@@ -31,6 +31,7 @@ const pages = ['admin/breaks.html', 'admin/users.html', 'student/internships.htm
             for (const width of [320, 390, 768, 1440]) {
                 const page = await browser.newPage({ viewport: { width, height: 900 } });
                 const errors = [];
+                page.on('pageerror', error => errors.push(error.message));
                 page.on('dialog', async dialog => { errors.push(dialog.message()); await dialog.dismiss(); });
                 await page.setContent(`<style>${bootstrap}\n${baseCSS}\n${localCSS}\n${sharedCSS}\nbody{overflow-x:visible}</style>
                     <main class="main-content"><div class="card data-table-wrapper admin-breaks-table student-internships-card"><div class="card-body"><div class="table-responsive"><table id="${tableID}" class="table"><thead>${header}</thead><tbody>${rows}</tbody></table></div></div></div></main>
@@ -43,11 +44,22 @@ const pages = ['admin/breaks.html', 'admin/users.html', 'student/internships.htm
                 page.locator = selector => originalLocator(selector.replaceAll('#fixture', '#' + tableID));
                 await page.evaluate(id => { window.tableTestAPI = $('#' + id).DataTable({ pageLength: 5 }); }, tableID);
                 await page.addScriptTag({ content: sharedJS });
+                assert.deepEqual(errors, []);
                 if (width < 768) {
                     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${template}: page overflow at ${width}`);
                     assert.equal(await page.locator('#fixture tbody tr:first-child td[data-ims-label]').count(), columns);
+                    assert.equal(await page.locator('#fixture thead').isVisible(), false);
+                    assert.equal(await page.locator('#fixture tbody tr:first-child .ims-primary-field').count(), 1);
+                    await page.locator('.ims-table-sort select').selectOption('0:desc');
+                    assert.equal(await page.evaluate(() => tableTestAPI.order()[0][1]), 'desc');
                 } else {
                     assert.equal(await page.locator('#fixture').evaluate(el => getComputedStyle(el).display), 'table');
+                    if (width === 1440) {
+                        await page.locator('.main-content').evaluate(el => { el.style.width = '500px'; });
+                        await page.waitForFunction(() => document.querySelector('table').classList.contains('ims-card-layout'));
+                        await page.locator('.main-content').evaluate(el => { el.style.width = ''; });
+                        await page.waitForFunction(() => !document.querySelector('table').classList.contains('ims-card-layout'));
+                    }
                 }
                 await page.evaluate(() => tableTestAPI.search('verylongstudentemail').draw());
                 assert.equal(await page.evaluate(() => tableTestAPI.page.info().recordsDisplay), 18);

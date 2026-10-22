@@ -3,8 +3,9 @@ import uuid
 from django.db import models
 from django.contrib.auth.models import User
 from .validators import validate_mobile_number
+from apps.core.recycle import RecyclableModel
 
-class UserProfile(models.Model):
+class UserProfile(RecyclableModel):
     ROLE_CHOICES = (
         ('unassigned', 'Awaiting Role Assignment'),
         ('admin', 'System Admin'),
@@ -32,6 +33,8 @@ class UserProfile(models.Model):
     
     def can_login(self):
         """Check if user can login (active and approved)"""
+        if self.deleted_at or (self.role == 'student' and getattr(getattr(self.user, 'student_profile', None), 'deleted_at', None)):
+            return False
         if self.role in ['admin', 'faculty_mentor', 'evaluator', 'hod']:
             return self.is_active
         return self.is_active and self.is_approved

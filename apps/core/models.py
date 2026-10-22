@@ -4,8 +4,9 @@ from django.db import models
 from django.contrib.auth.models import User
 from apps.authentication.models import UserProfile
 from apps.authentication.validators import validate_mobile_number
+from .recycle import RecyclableModel
 
-class Department(models.Model):
+class Department(RecyclableModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200, unique=True)
     code = models.CharField(max_length=20, unique=True)
@@ -16,7 +17,7 @@ class Department(models.Model):
     def __str__(self):
         return f"{self.code} - {self.name}"
 
-class Programme(models.Model):
+class Programme(RecyclableModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200, unique=True)
     code = models.CharField(max_length=20, unique=True)
@@ -27,7 +28,7 @@ class Programme(models.Model):
     def __str__(self):
         return f"{self.code} - {self.name}"
 
-class Batch(models.Model):
+class Batch(RecyclableModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     programme = models.ForeignKey(Programme, on_delete=models.CASCADE, related_name='batches')
@@ -43,7 +44,7 @@ class Batch(models.Model):
 
 # apps/core/models.py (Student model only - FIXED)
 
-class Student(models.Model):
+class Student(RecyclableModel):
     """
     Student model as per SRS - Direct fields, optional User link for Google Login
     """
@@ -133,7 +134,7 @@ class Student(models.Model):
         
         super().save(*args, **kwargs)
 
-class Organisation(models.Model):
+class Organisation(RecyclableModel):
     TYPE_CHOICES = (
         ('advocate', 'Advocate'),
         ('law_firm', 'Law Firm'),
@@ -172,7 +173,7 @@ class Organisation(models.Model):
             return f"Other / {self.organisation_type_other}"
         return self.get_organisation_type_display()
 
-class InternshipRecord(models.Model):
+class InternshipRecord(RecyclableModel):
     INTERNSHIP_TYPES = (
         ('regular', 'Regular Internship'),
         ('assessment', 'Assessment Internship'),
@@ -257,7 +258,7 @@ class InternshipRecord(models.Model):
     def __str__(self):
         return f"{self.student.register_number} - {self.internship_type} #{self.internship_number}"
 
-class BreakRecord(models.Model):
+class BreakRecord(RecyclableModel):
     BREAK_TYPES = (
         ('academic', 'Academic Break'),
         ('internship', 'Internship Break'),
@@ -287,7 +288,7 @@ class BreakRecord(models.Model):
 # MENTOR ASSIGNMENT MODELS
 # ============================================
 
-class MentorAssignment(models.Model):
+class MentorAssignment(RecyclableModel):
     ASSIGNMENT_LEVELS = (
         ('programme', 'Programme'),
         ('batch', 'Batch'),
@@ -337,7 +338,7 @@ class MentorAssignment(models.Model):
         super().save(*args, **kwargs)
 
 
-class AssessmentComponent(models.Model):
+class AssessmentComponent(RecyclableModel):
     ASSESSMENT_TYPES = (
         ('intermediate', 'Intermediate Assessment'),
         ('report', 'Report Evaluation'),
@@ -360,7 +361,7 @@ class AssessmentComponent(models.Model):
         return f"{self.name} ({self.get_assessment_type_display()})"
 
 
-class AssessmentMarks(models.Model):
+class AssessmentMarks(RecyclableModel):
     STATUS_CHOICES = (
         ('draft', 'Draft'),
         ('submitted', 'Submitted'),
@@ -431,7 +432,7 @@ class ConsolidatedScore(models.Model):
 
 # apps/core/models.py - ADD THESE MODELS AT THE END
 
-class AssessmentConfiguration(models.Model):
+class AssessmentConfiguration(RecyclableModel):
     """Configurable assessment rules"""
     CALCULATION_CHOICES = (
         ('simple_average', 'Simple Average'),

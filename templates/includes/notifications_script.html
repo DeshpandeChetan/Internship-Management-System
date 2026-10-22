@@ -1,0 +1,78 @@
+<script>
+(function () {
+    window.showToast = function (message, level = 'success') {
+        const container = document.getElementById('imsMessages');
+        if (!container) return;
+        const alert = document.createElement('div');
+        const color = {error: 'danger', danger: 'danger', warning: 'warning', info: 'info', success: 'success'}[level] || 'info';
+        alert.className = `alert alert-${color} alert-dismissible fade show`;
+        alert.setAttribute('role', 'alert');
+        alert.setAttribute('data-ims-message', '');
+        const icon = color === 'success' ? 'check-circle' : color === 'danger' ? 'exclamation-circle' : 'info-circle';
+        alert.innerHTML = `<i class="fas fa-${icon} me-2"></i><span></span><button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+        alert.querySelector('span').textContent = message;
+        container.appendChild(alert);
+    };
+
+    let latestDetails = null;
+    function label(value) { return value.replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase()); }
+    function renderDetails(data, parent) {
+        const grid = document.createElement('dl');
+        grid.className = 'row details-grid';
+        Object.entries(data).forEach(([key, value]) => {
+            if (key === 'id' && data.number !== undefined) return;
+            const term = document.createElement('dt');
+            term.className = 'col-sm-4';
+            term.textContent = label(key);
+            const definition = document.createElement('dd');
+            definition.className = 'col-sm-8 text-break';
+            if (key === 'number' && data.id && window.viewStudentInternship) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'btn btn-link p-0';
+                button.textContent = value;
+                button.addEventListener('click', () => window.viewStudentInternship(data.id));
+                definition.appendChild(button);
+            } else if (value && typeof value === 'object') {
+                if (Array.isArray(value)) {
+                    if (!value.length) definition.textContent = '-';
+                    value.forEach(item => {
+                        const section = document.createElement('div');
+                        section.className = 'mb-3';
+                        if (item && typeof item === 'object') renderDetails(item, section);
+                        else section.textContent = String(item);
+                        definition.appendChild(section);
+                    });
+                } else renderDetails(value, definition);
+            } else definition.textContent = value === null || value === '' ? '-' : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
+            grid.append(term, definition);
+        });
+        parent.appendChild(grid);
+    }
+    window.IMSDetails = {
+        async open(title, url) {
+            const modal = document.getElementById('viewModal');
+            const body = document.getElementById('viewModalBody');
+            if (!modal || !body) return;
+            if (latestDetails) latestDetails.abort();
+            const controller = new AbortController();
+            latestDetails = controller;
+            modal.querySelector('.modal-title').textContent = title;
+            body.textContent = 'Loading details...';
+            bootstrap.Modal.getOrCreateInstance(modal).show();
+            try {
+                const response = await fetch(url, {signal: controller.signal});
+                if (!response.ok) throw new Error('Unable to load details. Please try again.');
+                const data = await response.json();
+                if (latestDetails !== controller) return;
+                body.replaceChildren();
+                renderDetails(data, body);
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+                body.textContent = 'Unable to load details. Please try again.';
+                window.showToast(body.textContent, 'error');
+            }
+        }
+    };
+})();
+</script>

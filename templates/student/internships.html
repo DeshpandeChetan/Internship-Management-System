@@ -121,7 +121,7 @@
                                         </button>
                                     </li>
                                     <li>
-                                        <form method="post" action="{% url 'student_internship_delete' internship.id %}" onsubmit="return confirm('Delete this internship? This cannot be undone.');">
+                                        <form method="post" action="{% url 'student_internship_delete' internship.id %}" onsubmit="return confirm('Delete this internship? An admin can restore it from Deleted Content.');">
                                             {% csrf_token %}
                                             <button class="dropdown-item text-danger" type="submit"><i class="fas fa-trash me-2"></i>Delete</button>
                                         </form>

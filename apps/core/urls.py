@@ -6,6 +6,7 @@ from . import student_views
 from . import mentor_views
 from . import evaluator_views
 from . import hod_views
+from . import recycle_views
 
 urlpatterns = [
     # Dashboard
@@ -24,6 +25,10 @@ urlpatterns = [
     # ADMIN URLS
     # ============================================
     path('admin/dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
+    path('admin/settings/', recycle_views.settings_page, name='admin_settings'),
+    path('admin/settings/deleted/', recycle_views.deleted_content, name='admin_deleted_content'),
+    path('admin/settings/deleted/<str:kind>/<uuid:pk>/restore/', recycle_views.restore_record, name='admin_deleted_restore'),
+    path('admin/settings/deleted/<str:kind>/<uuid:pk>/permanent/', recycle_views.permanently_delete, name='admin_deleted_permanent'),
     path('admin/audit-logs/', admin_views.audit_logs, name='admin_audit_logs'),
        
     # User Management
@@ -33,6 +38,7 @@ urlpatterns = [
     path('admin/users/roles/', admin_views.manage_user_roles, name='admin_manage_users'),
     path('admin/users/roles/<int:user_id>/', admin_views.update_user_role, name='admin_update_user_role'),
     path('admin/users/add/', admin_views.user_add, name='admin_user_add'),
+    path('admin/users/<uuid:pk>/detail/', admin_views.user_detail, name='admin_user_detail'),
     path('admin/users/<uuid:pk>/edit/', admin_views.user_edit, name='admin_user_edit'),
     path('admin/users/<uuid:pk>/delete/', admin_views.user_delete, name='admin_user_delete'),
     path('admin/users/<uuid:pk>/toggle/', admin_views.user_toggle, name='admin_user_toggle'),

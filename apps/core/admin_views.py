@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .form_responses import invalid_form_response
+from django.views.decorators.http import require_POST
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -188,6 +189,27 @@ def user_list(request):
 
 @login_required
 @user_passes_test(is_admin)
+def user_detail(request, pk):
+    profile = get_object_or_404(UserProfile.objects.select_related('user', 'department'), pk=pk)
+    user = profile.user
+    return JsonResponse({
+        'name': user.get_full_name() or user.email,
+        'first_name': user.first_name, 'last_name': user.last_name,
+        'username': user.username, 'email': user.email,
+        'phone_number': profile.phone_number or '-',
+        'role': profile.get_role_display(),
+        'department': profile.department.name if profile.department else '-',
+        'account_active': user.is_active and profile.is_active,
+        'approved': profile.is_approved, 'staff_access': user.is_staff,
+        'date_joined': user.date_joined.isoformat(),
+        'last_login': user.last_login.isoformat() if user.last_login else '-',
+        'profile_created': profile.created_on.isoformat(),
+        'profile_updated': profile.updated_on.isoformat(),
+    })
+
+
+@login_required
+@user_passes_test(is_admin)
 def user_add(request):
     """Add new user"""
     if request.method == 'POST':
@@ -283,6 +305,7 @@ def user_approve(request, pk):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def user_delete(request, pk):
     """Soft delete user"""
     profile = get_object_or_404(UserProfile, pk=pk)
@@ -290,9 +313,11 @@ def user_delete(request, pk):
         messages.error(request, 'Student records must be handled from Student Management.')
         return redirect('admin_students')
     if request.method in ['GET', 'POST']:
-        profile.is_active = False
-        profile.save()
-        messages.success(request, f'User {profile.user.email} deactivated successfully!')
+        if profile.user_id == request.user.pk or profile.user.is_superuser:
+            messages.error(request, 'This administrator account cannot be deleted.')
+            return redirect('admin_users')
+        profile.delete(deleted_by=request.user)
+        messages.success(request, f'User {profile.user.email} moved to Deleted Content.')
         return redirect('admin_users')
     return redirect('admin_users')
 
@@ -493,11 +518,18 @@ def user_bulk_upload_sample(request):
 def manage_user_roles(request):
     """Manage existing users and their roles"""
     users = UserProfile.objects.filter(is_approved=True).exclude(role='pending').select_related('user')
+    search = request.GET.get('q', '').strip()
+    if search:
+        for term in search.split():
+            users = users.filter(Q(user__first_name__icontains=term) | Q(user__last_name__icontains=term) |
+                                 Q(user__email__icontains=term) | Q(user__username__icontains=term) |
+                                 Q(department__name__icontains=term) | Q(role__icontains=term))
     
     context = {
         'active_tab': 'admin_users',
         'users': users,
         'role_choices': UserProfile.ROLE_CHOICES,
+        'search': request.GET.get('q', ''),
     }
     return render(request, 'admin/manage_users.html', context)
 
@@ -516,9 +548,10 @@ def update_user_role(request, user_id):
             Student.objects.create(user=profile.user, email=profile.user.email,
                                    name=profile.user.get_full_name() or profile.user.email,
                                    register_number=f'PENDING-{profile.pk}', created_by=request.user)
+        old_role = profile.get_role_display()
         profile.role = role
         profile.save()
-        messages.success(request, f'Role updated to {profile.get_role_display()}')
+        messages.success(request, f'{profile.user.email}: role changed from {old_role} to {profile.get_role_display()}.')
         return redirect('admin_manage_users')
     
     context = {
@@ -737,7 +770,7 @@ def student_detail(request, pk):
             (
                 assignment.faculty_mentor.user.get_full_name() or assignment.faculty_mentor.user.email
                 for assignment in mentors
-                if assignment.is_active
+                if assignment.is_current
             ),
             '-'
         ),
@@ -754,6 +787,7 @@ def student_detail(request, pk):
         ],
         'internships': [
             {
+                'id': str(internship.pk),
                 'number': internship.internship_number,
                 'organisation': internship.organisation.name,
                 'type': internship.get_internship_type_display(),
@@ -787,13 +821,13 @@ def student_detail(request, pk):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def student_delete(request, pk):
     """Soft delete student"""
     student = get_object_or_404(Student, pk=pk)
     if request.method in ['GET', 'POST']:
-        student.status = 'discontinued'
-        student.save()
-        messages.success(request, f'Student {student.name} marked as discontinued!')
+        student.delete(deleted_by=request.user)
+        messages.success(request, f'Student {student.name} moved to Deleted Content.')
         return redirect('admin_students')
     return redirect('admin_students')
 
@@ -1019,12 +1053,12 @@ def organisation_toggle(request, pk):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def organisation_delete(request, pk):
     """Soft delete organisation"""
     organisation = get_object_or_404(Organisation, pk=pk)
-    organisation.is_active = False
-    organisation.save()
-    messages.success(request, f'Organisation {organisation.name} deactivated successfully!')
+    organisation.delete(deleted_by=request.user)
+    messages.success(request, f'Organisation {organisation.name} moved to Deleted Content.')
     return redirect('admin_organisations')
 
 
@@ -1189,10 +1223,11 @@ def programme_toggle(request, pk):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def programme_delete(request, pk):
     """Delete programme"""
     programme = get_object_or_404(Programme, pk=pk)
-    programme.delete()
+    programme.delete(deleted_by=request.user)
     messages.success(request, f'Programme {programme.name} deleted successfully!')
     return redirect('admin_programmes')
 
@@ -1287,10 +1322,11 @@ def batch_toggle(request, pk):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def batch_delete(request, pk):
     """Delete batch"""
     batch = get_object_or_404(Batch, pk=pk)
-    batch.delete()
+    batch.delete(deleted_by=request.user)
     messages.success(request, f'Batch {batch.name} deleted successfully!')
     return redirect('admin_batches')
 
@@ -1510,10 +1546,11 @@ def break_edit(request, pk):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def break_delete(request, pk):
     """Delete break"""
     break_record = get_object_or_404(BreakRecord, pk=pk)
-    break_record.delete()
+    break_record.delete(deleted_by=request.user)
     messages.success(request, 'Break record deleted successfully!')
     return redirect('admin_breaks')
 
@@ -1596,12 +1633,12 @@ def assessment_config(request):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def assessment_component_delete(request, pk):
     """Delete assessment component"""
     component = get_object_or_404(AssessmentComponent, pk=pk)
-    component.is_active = False
-    component.save()
-    messages.success(request, f'Component {component.name} deactivated successfully!')
+    component.delete(deleted_by=request.user)
+    messages.success(request, f'Component {component.name} moved to Deleted Content.')
     return redirect('admin_assessment_config')
 
 
@@ -1654,7 +1691,11 @@ def assessment_component_edit(request, pk):
 @user_passes_test(is_admin)
 def mentor_assignment_list(request):
     """Manage mentor assignments"""
-    assignments = MentorAssignment.objects.select_related('student', 'faculty_mentor').all()
+    today = timezone.localdate()
+    assignments = MentorAssignment.objects.filter(
+        is_active=True, effective_from__lte=today,
+        student__deleted_at__isnull=True, faculty_mentor__deleted_at__isnull=True,
+    ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today)).select_related('student', 'faculty_mentor__user')
     faculty_mentors = UserProfile.objects.filter(role__in=['faculty_mentor', 'hod'])
     
     context = {
@@ -1802,10 +1843,11 @@ def mentor_assignment_toggle(request, pk):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def mentor_assignment_delete(request, pk):
     """Delete mentor assignment"""
     assignment = get_object_or_404(MentorAssignment, pk=pk)
-    assignment.delete()
+    assignment.delete(deleted_by=request.user)
     messages.success(request, 'Mentor assignment deleted successfully!')
     return redirect('admin_mentor_assignments')
 

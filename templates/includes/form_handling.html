@@ -40,6 +40,7 @@
         if (summary.childNodes.length) {
             (form.querySelector('.modal-body') || form).prepend(summary);
             summary.tabIndex = -1;
+            if (window.showToast) window.showToast(summary.textContent, 'error');
         }
         const target = first || (summary.childNodes.length ? summary : null);
         if (target) { target.focus(); target.scrollIntoView({block: 'nearest'}); }

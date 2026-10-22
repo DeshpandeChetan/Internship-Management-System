@@ -17,7 +17,7 @@ class FormSubmissionMiddleware:
         failures = [item for item in queued if item.level >= messages.ERROR]
         if not failures:
             storage.used = False
-            return response
+            return JsonResponse({'success': True, 'redirect_url': response['Location']})
         for item in queued:
             if item.level < messages.ERROR:
                 messages.add_message(request, item.level, item.message, extra_tags=item.extra_tags)

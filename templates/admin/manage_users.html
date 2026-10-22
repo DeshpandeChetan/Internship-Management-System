@@ -1,12 +1,17 @@
 {% extends 'layout/base.html' %}
 {% block page_title %}Role Management{% endblock %}
 {% block content %}
+<form method="get" class="d-flex flex-wrap gap-2 mb-3">
+    <input type="search" name="q" class="form-control" style="max-width: 420px" value="{{ search }}" placeholder="Search name, email, role or department" aria-label="Search users">
+    <button class="btn btn-primary" type="submit"><i class="fas fa-search me-1"></i>Search</button>
+    {% if search %}<a class="btn btn-outline-secondary" href="{% url 'admin_manage_users' %}">Clear</a>{% endif %}
+</form>
 <div class="table-responsive">
     <table class="table table-hover align-middle">
         <thead><tr><th>User</th><th>Current Role</th><th>Assign Role</th></tr></thead>
         <tbody>
         {% for profile in users %}
-        <tr><td>{{ profile.user.email }}</td><td>{{ profile.get_role_display }}</td><td>
+        <tr><td><strong>{{ profile.user.get_full_name|default:profile.user.email }}</strong><br><small>{{ profile.user.email }}</small></td><td>{{ profile.get_role_display }}</td><td>
             <form method="post" action="{% url 'admin_update_user_role' profile.user.id %}" class="d-flex gap-2">
                 {% csrf_token %}
                 <select name="role" class="form-select" aria-label="Role">

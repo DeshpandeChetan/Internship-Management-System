@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class CustomAccountAdapter(DefaultAccountAdapter):
     def pre_login(self, request, user, **kwargs):
         profile = getattr(user, 'profile', None)
-        if not user.is_active or (profile and not profile.is_active):
+        if not user.is_active or (profile and (not profile.is_active or profile.deleted_at)):
             messages.error(request, 'Your account has been deactivated. Please contact administrator.')
             return redirect('login')
         if profile is None:

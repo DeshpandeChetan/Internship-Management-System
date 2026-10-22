@@ -1,0 +1,8 @@
+{% extends 'layout/base.html' %}
+{% block page_title %}Settings{% endblock %}
+{% block content %}
+<div class="row"><div class="col-md-4"><div class="card">
+    <div class="card-body"><h5><i class="fas fa-trash-restore me-2"></i>Deleted Content</h5>
+    <a class="btn btn-outline-primary" href="{% url 'admin_deleted_content' %}">Open Deleted Content</a></div>
+</div></div></div>
+{% endblock %}

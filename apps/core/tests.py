@@ -58,6 +58,20 @@ class MentorHistoryTests(TestCase):
         self.assertTrue(self.old.is_current)
         self.assertFalse(future.is_current)
 
+    def test_admin_assignment_list_only_contains_current_assignments(self):
+        from django.urls import reverse
+        admin = User.objects.create_superuser('listadmin', 'listadmin@test.com', 'password')
+        self.client.force_login(admin)
+        MentorAssignment.objects.create(student=self.student, faculty_mentor=self.mentors[1],
+            effective_from=self.today + timedelta(days=3))
+        MentorAssignment.objects.create(student=self.student, faculty_mentor=self.mentors[1],
+            effective_from=self.today - timedelta(days=10), is_active=False)
+        MentorAssignment.objects.create(student=self.student, faculty_mentor=self.mentors[1],
+            effective_from=self.today - timedelta(days=20), effective_to=self.today - timedelta(days=1))
+        response = self.client.get(reverse('admin_mentor_assignments'))
+        self.assertEqual(list(response.context['assignments']), [self.old])
+        self.assertEqual(self.student.mentor_assignments.count(), 4)
+
     def test_reassignment_cannot_start_on_previous_start(self):
         form = self.form(effective_from=self.old.effective_from.isoformat())
         self.assertFalse(form.is_valid())
@@ -136,6 +150,189 @@ class InternshipAcademicPeriodTests(TestCase):
         for name in ('start_date', 'end_date'):
             self.assertEqual(form.fields[name].widget.attrs['min'], self.start.isoformat())
             self.assertEqual(form.fields[name].widget.attrs['max'], self.end.isoformat())
+
+class DeletedContentTests(TestCase):
+    def setUp(self):
+        from .models import Programme, Batch
+        self.admin = User.objects.create_superuser('binadmin', 'binadmin@test.com', 'password')
+        self.client.force_login(self.admin)
+        self.programme = Programme.objects.create(code='BIN', name='Recycle Programme')
+        self.batch = Batch.objects.create(name='Recycle Batch', programme=self.programme, start_year=2026, end_year=2031)
+
+    def test_delete_preserves_dependencies_and_restore_restores_original_state(self):
+        from django.urls import reverse
+        from .models import Programme, Batch
+        self.client.post(reverse('admin_programme_delete', args=[self.programme.pk]))
+        self.assertFalse(Programme.objects.filter(pk=self.programme.pk).exists())
+        self.assertTrue(Programme.all_objects.get(pk=self.programme.pk).is_active)
+        self.assertTrue(Batch.objects.filter(pk=self.batch.pk).exists())
+        self.assertContains(self.client.get(reverse('admin_deleted_content')), 'Recycle Programme')
+        self.client.post(reverse('admin_deleted_restore', args=['programme', self.programme.pk]))
+        self.assertTrue(Programme.objects.get(pk=self.programme.pk).is_active)
+        self.batch.refresh_from_db()
+        self.assertEqual(self.batch.programme_id, self.programme.pk)
+
+    def test_permanent_delete_preserves_even_deleted_dependencies(self):
+        from django.urls import reverse
+        from .models import Programme, Batch
+        self.programme.delete()
+        self.batch.delete()
+        response = self.client.post(reverse('admin_deleted_permanent', args=['programme', self.programme.pk]), follow=True)
+        self.assertContains(response, 'Related historical records have been preserved')
+        self.assertFalse(Programme.all_objects.filter(pk=self.programme.pk).exists())
+        self.assertTrue(Batch.all_objects.filter(pk=self.batch.pk).exists())
+        self.batch.refresh_from_db()
+        reference = self.batch.programme
+        self.assertTrue(reference.is_history_reference)
+        self.assertFalse(Programme.objects.filter(pk=reference.pk).exists())
+        self.assertEqual(self.client.post(reverse('admin_deleted_restore', args=['programme', reference.pk])).status_code, 404)
+        self.client.post(reverse('admin_deleted_restore', args=['batch', self.batch.pk]))
+        self.assertTrue(Batch.objects.filter(pk=self.batch.pk).exists())
+
+    def test_permanent_delete_without_dependencies(self):
+        from django.urls import reverse
+        from .models import Batch
+        self.batch.delete()
+        self.client.post(reverse('admin_deleted_permanent', args=['batch', self.batch.pk]))
+        self.assertFalse(Batch.all_objects.filter(pk=self.batch.pk).exists())
+
+    def test_child_restore_requires_parent_first(self):
+        from django.urls import reverse
+        from .models import Batch
+        self.batch.delete()
+        self.programme.delete()
+        self.client.post(reverse('admin_deleted_restore', args=['batch', self.batch.pk]))
+        self.assertFalse(Batch.objects.filter(pk=self.batch.pk).exists())
+
+    def test_deactivate_stays_in_list_and_outside_deleted_content(self):
+        from django.urls import reverse
+        from .models import Programme
+        self.client.get(reverse('admin_programme_toggle', args=[self.programme.pk]))
+        programme = Programme.objects.get(pk=self.programme.pk)
+        self.assertFalse(programme.is_active)
+        self.assertIsNone(programme.deleted_at)
+
+    def test_delete_requires_post_and_recycle_access_requires_admin(self):
+        from django.urls import reverse
+        self.assertEqual(self.client.get(reverse('admin_programme_delete', args=[self.programme.pk])).status_code, 405)
+        user = User.objects.create_user('binmentor', 'binmentor@test.com')
+        UserProfile.objects.create(user=user, role='faculty_mentor', is_approved=True)
+        self.client.force_login(user)
+        for name, args in [('admin_deleted_content', []), ('admin_deleted_restore', ['batch', self.batch.pk])]:
+            self.assertEqual(self.client.post(reverse(name, args=args)).status_code, 302)
+
+    def test_user_delete_blocks_login_without_changing_activation(self):
+        from django.urls import reverse
+        user = User.objects.create_user('binuser', 'binuser@test.com')
+        profile = UserProfile.objects.create(user=user, role='faculty_mentor', is_approved=True)
+        self.client.post(reverse('admin_user_delete', args=[profile.pk]))
+        archived = UserProfile.all_objects.get(pk=profile.pk)
+        self.assertTrue(archived.is_active)
+        self.assertFalse(archived.can_login())
+        self.client.post(reverse('admin_deleted_restore', args=['userprofile', profile.pk]))
+        self.assertTrue(UserProfile.objects.get(pk=profile.pk).can_login())
+
+    def test_django_admin_bulk_delete_preserves_accounts(self):
+        from django.contrib import admin
+        from django.test import RequestFactory
+        from apps.authentication.admin import CustomUserAdmin
+        user = User.objects.create_user('adminbin', 'adminbin@test.com')
+        profile = UserProfile.objects.create(user=user, role='faculty_mentor', is_approved=True)
+        request = RequestFactory().post('/admin/auth/user/')
+        request.user = self.admin
+        CustomUserAdmin(User, admin.site).delete_queryset(request, User.objects.filter(pk__in=[user.pk, self.admin.pk]))
+        self.assertTrue(User.objects.filter(pk=user.pk).exists())
+        self.assertFalse(UserProfile.objects.filter(pk=profile.pk).exists())
+        self.assertTrue(UserProfile.objects.filter(user=self.admin).exists())
+
+    def test_student_delete_preserves_login_identity_and_blocks_login(self):
+        student = Student.objects.create(register_number='BIN-STUDENT', name='Archived Student', email='binstudent@test.com')
+        user = student.user
+        student.delete()
+        user = User.objects.get(pk=user.pk)
+        self.assertFalse(user.profile.can_login())
+        self.assertTrue(Student.all_objects.filter(pk=student.pk).exists())
+
+    def test_unreferenced_user_permanent_delete_removes_identity(self):
+        from django.urls import reverse
+        user = User.objects.create_user('removebin', 'removebin@test.com')
+        profile = UserProfile.objects.create(user=user, role='faculty_mentor', is_approved=True)
+        profile.delete()
+        self.client.post(reverse('admin_deleted_permanent', args=['userprofile', profile.pk]))
+        self.assertFalse(User.objects.filter(pk=user.pk).exists())
+        self.assertFalse(UserProfile.all_objects.filter(pk=profile.pk).exists())
+
+    def test_student_permanent_delete_preserves_internships_and_scores(self):
+        from datetime import date
+        from django.urls import reverse
+        from .models import InternshipRecord, Organisation, ConsolidatedScore
+        student = Student.objects.create(register_number='PERMANENT', name='Historical Student', email='permanent@test.com')
+        organisation = Organisation.objects.create(name='Historical Organisation', organisation_type='company')
+        internship = InternshipRecord.objects.create(student=student, organisation=organisation,
+            internship_number='1', start_date=date(2026, 1, 1), end_date=date(2026, 2, 1))
+        score = ConsolidatedScore.objects.create(student=student, final_consolidated_score=85, is_finalized=True)
+        student.delete()
+        self.client.post(reverse('admin_deleted_permanent', args=['student', student.pk]))
+        self.assertFalse(Student.all_objects.filter(pk=student.pk).exists())
+        internship.refresh_from_db()
+        score.refresh_from_db()
+        self.assertEqual(score.final_consolidated_score, 85)
+        self.assertEqual(score.student_id, internship.student_id)
+        self.assertTrue(internship.student.is_history_reference)
+        self.assertEqual(internship.student.name, 'Historical Student')
+
+    def test_internship_permanent_delete_preserves_marks_and_history(self):
+        from datetime import date
+        from django.urls import reverse
+        from .models import InternshipRecord, Organisation, AssessmentComponent, AssessmentMarks, AssessmentMarksHistory
+        student = Student.objects.create(register_number='MARKKEEP', name='Marks Student', email='markkeep@test.com')
+        organisation = Organisation.objects.create(name='Marks Organisation', organisation_type='company')
+        internship = InternshipRecord.objects.create(student=student, organisation=organisation,
+            internship_number='1', start_date=date(2026, 1, 1), end_date=date(2026, 2, 1))
+        component = AssessmentComponent.objects.create(name='Historical Viva', assessment_type='viva')
+        marks = AssessmentMarks.objects.create(internship_record=internship, assessment_component=component,
+            marks_awarded=90, maximum_marks=100, status='locked')
+        history = AssessmentMarksHistory.objects.create(assessment_marks=marks, remarks='Keep this history')
+        internship.delete()
+        self.client.post(reverse('admin_deleted_permanent', args=['internshiprecord', internship.pk]))
+        self.assertFalse(InternshipRecord.all_objects.filter(pk=internship.pk).exists())
+        marks.refresh_from_db()
+        self.assertEqual(marks.marks_awarded, 90)
+        self.assertEqual(marks.status, 'locked')
+        self.assertTrue(marks.internship_record.is_history_reference)
+        self.assertTrue(AssessmentMarksHistory.objects.filter(pk=history.pk).exists())
+
+    def test_user_permanent_delete_preserves_mentor_assignments_and_audit(self):
+        from django.urls import reverse
+        from .models import AuditLog
+        user = User.objects.create_user('pastmentor', 'pastmentor@test.com')
+        profile = UserProfile.objects.create(user=user, role='faculty_mentor', is_approved=True)
+        student = Student.objects.create(register_number='PAST', name='Student', email='past@test.com')
+        assignment = MentorAssignment.objects.create(student=student, faculty_mentor=profile, effective_from=timezone.localdate(), assigned_by=user)
+        audit = AuditLog.objects.create(user=user, action='CREATE', module='Test')
+        profile.delete()
+        self.client.post(reverse('admin_deleted_permanent', args=['userprofile', profile.pk]))
+        self.assertFalse(User.objects.filter(pk=user.pk).exists())
+        self.assertFalse(UserProfile.all_objects.filter(pk=profile.pk).exists())
+        assignment.refresh_from_db()
+        audit.refresh_from_db()
+        self.assertTrue(assignment.faculty_mentor.is_history_reference)
+        self.assertFalse(assignment.faculty_mentor.can_login())
+        self.assertFalse(audit.user.is_active)
+
+    def test_role_search_by_name_and_email(self):
+        from django.urls import reverse
+        user = User.objects.create_user('rolesearch', 'rolesearch@test.com', first_name='Distinctive')
+        profile = UserProfile.objects.create(user=user, role='faculty_mentor', is_approved=True)
+        for query in ('Distinctive', 'rolesearch@test.com'):
+            response = self.client.get(reverse('admin_manage_users'), {'q': query})
+            self.assertEqual(list(response.context['users']), [profile])
+
+    def test_pending_users_keep_users_sidebar_selected(self):
+        from django.urls import reverse
+        response = self.client.get(reverse('admin_pending_users'))
+        self.assertContains(response, 'class="nav-link active" href="' + reverse('admin_users') + '"')
+
 
 class AdminCreationStateTests(TestCase):
     def setUp(self):
@@ -257,15 +454,47 @@ class FormErrorResponseTests(TestCase):
     def test_success_redirect_and_message_are_preserved(self):
         from django.urls import reverse
         response = self.client.post(reverse('admin_department_add'), {'name': 'New Dept', 'code': 'NEW'}, **self.headers)
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('admin_departments'))
-        self.assertContains(self.client.get(response.url), 'Department added successfully!')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['redirect_url'], reverse('admin_departments'))
+        page = self.client.get(response.json()['redirect_url'])
+        self.assertContains(page, 'Department added successfully!')
+        self.assertContains(page, 'data-ims-message')
 
     def test_manual_business_errors_return_to_form_without_redirect(self):
         from django.urls import reverse
         response = self.client.post(reverse('admin_user_add'), {'role': 'student'}, **self.headers)
         self.assertEqual(response.status_code, 400)
         self.assertIn('Student Management', response.json()['errors']['__all__'][0])
+
+    def test_role_change_toast_preserves_old_and_new_roles(self):
+        from django.urls import reverse
+        user = User.objects.create_user('roletoast', 'roletoast@test.com')
+        UserProfile.objects.create(user=user, role='faculty_mentor', is_approved=True)
+        response = self.client.post(reverse('admin_update_user_role', args=[user.pk]), {'role': 'hod'}, **self.headers)
+        self.assertEqual(response.status_code, 200)
+        page = self.client.get(response.json()['redirect_url'])
+        self.assertContains(page, 'from Faculty Mentor to HoD/Coordinator')
+        self.assertContains(page, 'data-ims-message')
+        following = self.client.get(response.json()['redirect_url'])
+        self.assertNotContains(following, 'from Faculty Mentor to HoD/Coordinator')
+
+    def test_admin_user_view_details_and_access_control(self):
+        from django.urls import reverse
+        user = User.objects.create_user('detailuser', 'detailuser@test.com', first_name='Selected')
+        profile = UserProfile.objects.create(user=user, role='faculty_mentor', is_approved=True)
+        url = reverse('admin_user_detail', args=[profile.pk])
+        detail = self.client.get(url)
+        self.assertEqual(detail.json()['name'], 'Selected')
+        self.assertEqual(detail.json()['email'], user.email)
+        self.assertNotIn('password', detail.json())
+        self.client.force_login(user)
+        self.assertEqual(self.client.get(url).status_code, 302)
+
+    def test_admin_settings_link_card_and_access(self):
+        from django.urls import reverse
+        response = self.client.get(reverse('admin_users'))
+        self.assertContains(response, 'href="' + reverse('admin_settings') + '"')
+        self.assertContains(self.client.get(reverse('admin_settings')), reverse('admin_deleted_content'))
 
 
 class MobileValidationTests(TestCase):
@@ -328,6 +557,16 @@ class StudentAndApprovalWorkflowTests(TestCase):
         self.assertEqual(self.internship.verification_status, 'submitted')
         self.assertEqual(self.internship.completion_status, 'pending')
         self.assertIsNone(self.internship.verified_by)
+
+    def test_admin_student_internship_links_include_detail_and_verification(self):
+        from django.urls import reverse
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('admin_student_detail', args=[self.student.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['internships'][0]['id'], str(self.internship.pk))
+        detail = self.client.get(reverse('admin_internship_detail', args=[self.internship.pk]))
+        self.assertEqual(detail.json()['verification_status'], 'Verified')
+        self.assertEqual(detail.json()['completion_status'], 'Completed')
 
     def test_delete_requires_post_and_ownership(self):
         from django.urls import reverse

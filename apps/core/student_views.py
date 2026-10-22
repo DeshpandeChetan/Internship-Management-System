@@ -301,7 +301,7 @@ def internship_delete(request, pk):
         return redirect('my_internships')
     log_action(request, 'DELETE', 'InternshipRecord', record_id=internship.pk,
                old_value=f'{internship.internship_type} {internship.internship_number}: {internship.start_date} - {internship.end_date}')
-    internship.delete()
+    internship.delete(deleted_by=request.user)
     messages.success(request, 'Internship deleted successfully.')
     return redirect('my_internships')
 
@@ -506,7 +506,7 @@ def break_delete(request, pk):
             request, 'DELETE', 'BreakRecord', record_id=break_record.id,
             old_value=f'{student.register_number} - {break_record.get_break_type_display()}'
         )
-        break_record.delete()
+        break_record.delete(deleted_by=request.user)
         messages.success(request, 'Break record deleted successfully!')
     return redirect('student_breaks')
 

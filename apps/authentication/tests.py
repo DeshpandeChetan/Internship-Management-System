@@ -10,6 +10,37 @@ from apps.authentication.adapter import CustomSocialAccountAdapter
 from apps.authentication.models import UserProfile
 
 
+class LoginPageTests(TestCase):
+    def setUp(self):
+        app = SocialApp.objects.create(
+            provider='google', name='Google', client_id='test-client', secret='test-secret',
+        )
+        app.sites.add(Site.objects.get_current())
+
+    def test_login_renders_standalone_page_with_google_sign_in(self):
+        from django.urls import reverse
+
+        response = self.client.get(reverse('login'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<h1>IMS</h1>', html=True)
+        self.assertContains(response, '/accounts/google/login/')
+        self.assertContains(response, 'images/login-library.jpg')
+        self.assertNotContains(response, 'Login - IMS')
+        self.assertNotContains(response, '<nav')
+
+    def test_status_message_is_displayed_once(self):
+        from django.contrib import messages
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.template.loader import render_to_string
+
+        request = RequestFactory().get('/')
+        request.session = {}
+        request._messages = FallbackStorage(request)
+        messages.error(request, 'Your account is pending admin approval.')
+        html = render_to_string('authentication/login.html', request=request)
+        self.assertEqual(html.count('Your account is pending admin approval.'), 1)
+
+
 class AccountAuthorizationTests(TestCase):
     def test_login_status_messages_and_session(self):
         from allauth.account.internal.flows.login import perform_login

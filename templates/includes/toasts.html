@@ -1,0 +1,9 @@
+<div id="imsMessages">
+{% for message in messages %}
+<div class="alert alert-{% if message.level >= 40 %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert" data-ims-message>
+    <i class="fas fa-{% if message.level >= 40 %}exclamation-circle{% elif message.level >= 25 and message.level < 30 %}check-circle{% else %}info-circle{% endif %} me-2"></i>
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
+</div>

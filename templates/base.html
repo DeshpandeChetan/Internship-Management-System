@@ -202,6 +202,7 @@
         }
     </style>
     {% block extra_css %}{% endblock %}
+    <link rel="stylesheet" href="{% static 'css/responsive-tables.css' %}">
 </head>
 
 <body>
@@ -593,6 +594,7 @@
         }
     </script>
     {% block extra_js %}{% endblock %}
+    <script src="{% static 'js/responsive-tables.js' %}"></script>
     {% include 'includes/form_handling.html' %}
     {% include 'includes/notifications_script.html' %}
 </body>

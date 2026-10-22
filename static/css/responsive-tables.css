@@ -1,0 +1,31 @@
+/* Only mobile list tables change presentation; their original DOM and controls remain. */
+@media (max-width: 767.98px) {
+    .main-content, .main-content .row > *, .ims-table-container,
+    .main-content .dataTables_wrapper { min-width: 0; max-width: 100%; }
+    .ims-table-container { overflow-x: auto !important; }
+    .ims-table-container.ims-stacked-container { overflow: visible !important; }
+    .ims-table-owner { overflow: visible !important; min-width: 0; }
+    table.ims-mobile-table { display: block; width: 100% !important; min-width: 0 !important; max-width: 100%; }
+    table.ims-mobile-table > thead,
+    table.ims-mobile-table > tbody,
+    table.ims-mobile-table > tfoot { display: block; width: 100%; }
+    table.ims-mobile-table > thead > tr { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 0; }
+    table.ims-mobile-table > thead > tr > th,
+    table.ims-mobile-table > thead > tr > td { width: auto !important; min-width: 0 !important; white-space: normal !important; font-size: .8125rem; border: 0; padding: 8px 24px 8px 8px; overflow-wrap: anywhere; }
+    table.ims-mobile-table > tbody > tr,
+    table.ims-mobile-table > tfoot > tr { display: block; border: 1px solid #dee2e6; border-radius: 6px; margin-bottom: 12px; background: white; }
+    table.ims-mobile-table > tbody > tr > td,
+    table.ims-mobile-table > tbody > tr > th,
+    table.ims-mobile-table > tfoot > tr > td { display: block; width: 100% !important; min-width: 0 !important; max-width: 100%; padding: 10px 12px; text-align: left !important; white-space: normal !important; overflow-wrap: anywhere; border-width: 0 0 1px; }
+    table.ims-mobile-table [data-ims-label]::before { content: attr(data-ims-label); display: block; margin-bottom: 4px; color: var(--secondary, #64748b); font-size: .8125rem; font-weight: 600; }
+    table.ims-mobile-table .badge,
+    table.ims-mobile-table a { white-space: normal; overflow-wrap: anywhere; }
+    table.ims-mobile-table .btn-group { flex-wrap: wrap; gap: 4px; }
+    table.ims-mobile-table .dropdown-menu { min-width: min(160px, 100%); max-width: 100%; }
+    table.ims-mobile-table .dropdown-item { white-space: normal; overflow-wrap: anywhere; }
+    .main-content .dataTables_filter input { max-width: 100%; margin: 4px 0 !important; }
+    .main-content .dataTables_filter label { max-width: 100%; white-space: normal; }
+    .main-content .dataTables_paginate .pagination { flex-wrap: wrap; gap: 2px; }
+    .main-content .dt-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+    .modal .ims-table-container { max-width: 100%; }
+}
